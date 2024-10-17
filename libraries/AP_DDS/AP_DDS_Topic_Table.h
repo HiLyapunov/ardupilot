@@ -65,10 +65,10 @@ enum class TopicIndex: uint8_t {
 #if AP_DDS_GLOBAL_POS_CTRL_ENABLED
     GLOBAL_POSITION_SUB,
 #endif // AP_DDS_GLOBAL_POS_CTRL_ENABLED
-//~~~~~~~~~~~~~Add Topic Index~~~~~~~~~~~~~~~~~~
-#if AP_DDS_THR_OUT_PUB_ENABLED
-    THR_OUT_PUB, //Add DIY Publisher topic Index
-#endif // AP_DDS_THR_OUT_PUB_ENABLED
+    //~~~~~~~~~~~~~Add Topic Index~~~~~~~~~~~~~~~~~~
+#if AP_DDS_WRE_OUT_PUB_ENABLED
+    WRE_OUT_PUB, //Add DIY Publisher topic Index
+#endif // AP_DDS_WRE_OUT_PUB_ENABLED
 };
 
 static inline constexpr uint8_t to_underlying(const TopicIndex index)
@@ -222,142 +222,19 @@ constexpr struct AP_DDS_Client::Topic_table AP_DDS_Client::topics[] = {
             .depth = 5,
         },
     },
-#endif // AP_DDS_AIRSPEED_PUB_ENABLED
-#if AP_DDS_GEOPOSE_PUB_ENABLED
+
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~DIY PUB~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~DIY PUB~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~DIY PUB~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#if AP_DDS_WRE_OUT_PUB_ENABLED
     {
-        .topic_id = to_underlying(TopicIndex::GEOPOSE_PUB),
-        .pub_id = to_underlying(TopicIndex::GEOPOSE_PUB),
-        .sub_id = to_underlying(TopicIndex::GEOPOSE_PUB),
-        .dw_id = uxrObjectId{.id=to_underlying(TopicIndex::GEOPOSE_PUB), .type=UXR_DATAWRITER_ID},
-        .dr_id = uxrObjectId{.id=to_underlying(TopicIndex::GEOPOSE_PUB), .type=UXR_DATAREADER_ID},
+        .topic_id = to_underlying(TopicIndex::WRE_OUT_PUB),
+        .pub_id = to_underlying(TopicIndex::WRE_OUT_PUB),
+        .sub_id = to_underlying(TopicIndex::WRE_OUT_PUB),
+        .dw_id = uxrObjectId{.id=to_underlying(TopicIndex::WRE_OUT_PUB), .type=UXR_DATAWRITER_ID},
+        .dr_id = uxrObjectId{.id=to_underlying(TopicIndex::WRE_OUT_PUB), .type=UXR_DATAREADER_ID},
         .topic_rw = Topic_rw::DataWriter,
-        .topic_name = "rt/ap/geopose/filtered",
-        .type_name = "geographic_msgs::msg::dds_::GeoPoseStamped_",
-        .qos = {
-            .durability = UXR_DURABILITY_VOLATILE,
-            .reliability = UXR_RELIABILITY_BEST_EFFORT,
-            .history = UXR_HISTORY_KEEP_LAST,
-            .depth = 5,
-        },
-    },
-#endif // AP_DDS_GEOPOSE_PUB_ENABLED
-#if AP_DDS_CLOCK_PUB_ENABLED
-    {
-        .topic_id = to_underlying(TopicIndex::CLOCK_PUB),
-        .pub_id = to_underlying(TopicIndex::CLOCK_PUB),
-        .sub_id = to_underlying(TopicIndex::CLOCK_PUB),
-        .dw_id = uxrObjectId{.id=to_underlying(TopicIndex::CLOCK_PUB), .type=UXR_DATAWRITER_ID},
-        .dr_id = uxrObjectId{.id=to_underlying(TopicIndex::CLOCK_PUB), .type=UXR_DATAREADER_ID},
-        .topic_rw = Topic_rw::DataWriter,
-        .topic_name = "rt/ap/clock",
-        .type_name = "rosgraph_msgs::msg::dds_::Clock_",
-        .qos = {
-            .durability = UXR_DURABILITY_VOLATILE,
-            .reliability = UXR_RELIABILITY_RELIABLE,
-            .history = UXR_HISTORY_KEEP_LAST,
-            .depth = 20,
-        },
-    },
-#endif // AP_DDS_CLOCK_PUB_ENABLED
-#if AP_DDS_GPS_GLOBAL_ORIGIN_PUB_ENABLED
-    {
-        .topic_id = to_underlying(TopicIndex::GPS_GLOBAL_ORIGIN_PUB),
-        .pub_id = to_underlying(TopicIndex::GPS_GLOBAL_ORIGIN_PUB),
-        .sub_id = to_underlying(TopicIndex::GPS_GLOBAL_ORIGIN_PUB),
-        .dw_id = uxrObjectId{.id=to_underlying(TopicIndex::GPS_GLOBAL_ORIGIN_PUB), .type=UXR_DATAWRITER_ID},
-        .dr_id = uxrObjectId{.id=to_underlying(TopicIndex::GPS_GLOBAL_ORIGIN_PUB), .type=UXR_DATAREADER_ID},
-        .topic_rw = Topic_rw::DataWriter,
-        .topic_name = "rt/ap/gps_global_origin/filtered",
-        .type_name = "geographic_msgs::msg::dds_::GeoPointStamped_",
-        .qos = {
-            .durability = UXR_DURABILITY_VOLATILE,
-            .reliability = UXR_RELIABILITY_BEST_EFFORT,
-            .history = UXR_HISTORY_KEEP_LAST,
-            .depth = 5,
-        },
-    },
-#endif // AP_DDS_GPS_GLOBAL_ORIGIN_PUB_ENABLED
-#if AP_DDS_JOY_SUB_ENABLED
-    {
-        .topic_id = to_underlying(TopicIndex::JOY_SUB),
-        .pub_id = to_underlying(TopicIndex::JOY_SUB),
-        .sub_id = to_underlying(TopicIndex::JOY_SUB),
-        .dw_id = uxrObjectId{.id=to_underlying(TopicIndex::JOY_SUB), .type=UXR_DATAWRITER_ID},
-        .dr_id = uxrObjectId{.id=to_underlying(TopicIndex::JOY_SUB), .type=UXR_DATAREADER_ID},
-        .topic_rw = Topic_rw::DataReader,
-        .topic_name = "rt/ap/joy",
-        .type_name = "sensor_msgs::msg::dds_::Joy_",
-        .qos = {
-            .durability = UXR_DURABILITY_VOLATILE,
-            .reliability = UXR_RELIABILITY_BEST_EFFORT,
-            .history = UXR_HISTORY_KEEP_LAST,
-            .depth = 5,
-        },
-    },
-#endif // AP_DDS_JOY_SUB_ENABLED
-#if AP_DDS_DYNAMIC_TF_SUB
-    {
-        .topic_id = to_underlying(TopicIndex::DYNAMIC_TRANSFORMS_SUB),
-        .pub_id = to_underlying(TopicIndex::DYNAMIC_TRANSFORMS_SUB),
-        .sub_id = to_underlying(TopicIndex::DYNAMIC_TRANSFORMS_SUB),
-        .dw_id = uxrObjectId{.id=to_underlying(TopicIndex::DYNAMIC_TRANSFORMS_SUB), .type=UXR_DATAWRITER_ID},
-        .dr_id = uxrObjectId{.id=to_underlying(TopicIndex::DYNAMIC_TRANSFORMS_SUB), .type=UXR_DATAREADER_ID},
-        .topic_rw = Topic_rw::DataReader,
-        .topic_name = "rt/ap/tf",
-        .type_name = "tf2_msgs::msg::dds_::TFMessage_",
-        .qos = {
-            .durability = UXR_DURABILITY_VOLATILE,
-            .reliability = UXR_RELIABILITY_BEST_EFFORT,
-            .history = UXR_HISTORY_KEEP_LAST,
-            .depth = 5,
-        },
-    },
-#endif // AP_DDS_DYNAMIC_TF_SUB
-#if AP_DDS_VEL_CTRL_ENABLED
-    {
-        .topic_id = to_underlying(TopicIndex::VELOCITY_CONTROL_SUB),
-        .pub_id = to_underlying(TopicIndex::VELOCITY_CONTROL_SUB),
-        .sub_id = to_underlying(TopicIndex::VELOCITY_CONTROL_SUB),
-        .dw_id = uxrObjectId{.id=to_underlying(TopicIndex::VELOCITY_CONTROL_SUB), .type=UXR_DATAWRITER_ID},
-        .dr_id = uxrObjectId{.id=to_underlying(TopicIndex::VELOCITY_CONTROL_SUB), .type=UXR_DATAREADER_ID},
-        .topic_rw = Topic_rw::DataReader,
-        .topic_name = "rt/ap/cmd_vel",
-        .type_name = "geometry_msgs::msg::dds_::TwistStamped_",
-        .qos = {
-            .durability = UXR_DURABILITY_VOLATILE,
-            .reliability = UXR_RELIABILITY_BEST_EFFORT,
-            .history = UXR_HISTORY_KEEP_LAST,
-            .depth = 5,
-        },
-    },
-#endif // AP_DDS_VEL_CTRL_ENABLED
-#if AP_DDS_GLOBAL_POS_CTRL_ENABLED
-    {
-        .topic_id = to_underlying(TopicIndex::GLOBAL_POSITION_SUB),
-        .pub_id = to_underlying(TopicIndex::GLOBAL_POSITION_SUB),
-        .sub_id = to_underlying(TopicIndex::GLOBAL_POSITION_SUB),
-        .dw_id = uxrObjectId{.id=to_underlying(TopicIndex::GLOBAL_POSITION_SUB), .type=UXR_DATAWRITER_ID},
-        .dr_id = uxrObjectId{.id=to_underlying(TopicIndex::GLOBAL_POSITION_SUB), .type=UXR_DATAREADER_ID},
-        .topic_rw = Topic_rw::DataReader,
-        .topic_name = "rt/ap/cmd_gps_pose",
-        .type_name = "ardupilot_msgs::msg::dds_::GlobalPosition_",
-        .qos = {
-            .durability = UXR_DURABILITY_VOLATILE,
-            .reliability = UXR_RELIABILITY_BEST_EFFORT,
-            .history = UXR_HISTORY_KEEP_LAST,
-            .depth = 5,
-        },
-    },
-#endif // AP_DDS_GLOBAL_POS_CTRL_ENABLED
-#if AP_DDS_THR_OUT_PUB_ENABLED
-    {
-        .topic_id = to_underlying(TopicIndex::THR_OUT_PUB),
-        .pub_id = to_underlying(TopicIndex::THR_OUT_PUB),
-        .sub_id = to_underlying(TopicIndex::THR_OUT_PUB),
-        .dw_id = uxrObjectId{.id=to_underlying(TopicIndex::THR_OUT_PUB), .type=UXR_DATAWRITER_ID},
-        .dr_id = uxrObjectId{.id=to_underlying(TopicIndex::THR_OUT_PUB), .type=UXR_DATAREADER_ID},
-        .topic_rw = Topic_rw::DataWriter,
-        .topic_name = "rt/ap/wrench/thr_out",
+        .topic_name = "rt/ap/wre_out",
         .type_name = "geometry_msgs::msg::dds_::WrenchStamped_",
         .qos = {
             .durability = UXR_DURABILITY_VOLATILE,
@@ -366,6 +243,137 @@ constexpr struct AP_DDS_Client::Topic_table AP_DDS_Client::topics[] = {
             .depth = 5,
         },
     },
-#endif //AP_DDS_THR_OUT_PUB_ENABLED
+#endif //AP_DDS_WRE_OUT_PUB_ENABLED
 };
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~END~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~END~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~END~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#endif // AP_DDS_AIRSPEED_PUB_ENABLED
+#if AP_DDS_GEOPOSE_PUB_ENABLED
+{
+    .topic_id = to_underlying(TopicIndex::GEOPOSE_PUB),
+    .pub_id = to_underlying(TopicIndex::GEOPOSE_PUB),
+    .sub_id = to_underlying(TopicIndex::GEOPOSE_PUB),
+    .dw_id = uxrObjectId{.id=to_underlying(TopicIndex::GEOPOSE_PUB), .type=UXR_DATAWRITER_ID},
+    .dr_id = uxrObjectId{.id=to_underlying(TopicIndex::GEOPOSE_PUB), .type=UXR_DATAREADER_ID},
+    .topic_rw = Topic_rw::DataWriter,
+    .topic_name = "rt/ap/geopose/filtered",
+    .type_name = "geographic_msgs::msg::dds_::GeoPoseStamped_",
+    .qos = {
+        .durability = UXR_DURABILITY_VOLATILE,
+        .reliability = UXR_RELIABILITY_BEST_EFFORT,
+        .history = UXR_HISTORY_KEEP_LAST,
+        .depth = 5,
+    },
+},
+#endif // AP_DDS_GEOPOSE_PUB_ENABLED
+#if AP_DDS_CLOCK_PUB_ENABLED
+{
+    .topic_id = to_underlying(TopicIndex::CLOCK_PUB),
+    .pub_id = to_underlying(TopicIndex::CLOCK_PUB),
+    .sub_id = to_underlying(TopicIndex::CLOCK_PUB),
+    .dw_id = uxrObjectId{.id=to_underlying(TopicIndex::CLOCK_PUB), .type=UXR_DATAWRITER_ID},
+    .dr_id = uxrObjectId{.id=to_underlying(TopicIndex::CLOCK_PUB), .type=UXR_DATAREADER_ID},
+    .topic_rw = Topic_rw::DataWriter,
+    .topic_name = "rt/ap/clock",
+    .type_name = "rosgraph_msgs::msg::dds_::Clock_",
+    .qos = {
+        .durability = UXR_DURABILITY_VOLATILE,
+        .reliability = UXR_RELIABILITY_RELIABLE,
+        .history = UXR_HISTORY_KEEP_LAST,
+        .depth = 20,
+    },
+},
+#endif // AP_DDS_CLOCK_PUB_ENABLED
+#if AP_DDS_GPS_GLOBAL_ORIGIN_PUB_ENABLED
+{
+    .topic_id = to_underlying(TopicIndex::GPS_GLOBAL_ORIGIN_PUB),
+    .pub_id = to_underlying(TopicIndex::GPS_GLOBAL_ORIGIN_PUB),
+    .sub_id = to_underlying(TopicIndex::GPS_GLOBAL_ORIGIN_PUB),
+    .dw_id = uxrObjectId{.id=to_underlying(TopicIndex::GPS_GLOBAL_ORIGIN_PUB), .type=UXR_DATAWRITER_ID},
+    .dr_id = uxrObjectId{.id=to_underlying(TopicIndex::GPS_GLOBAL_ORIGIN_PUB), .type=UXR_DATAREADER_ID},
+    .topic_rw = Topic_rw::DataWriter,
+    .topic_name = "rt/ap/gps_global_origin/filtered",
+    .type_name = "geographic_msgs::msg::dds_::GeoPointStamped_",
+    .qos = {
+        .durability = UXR_DURABILITY_VOLATILE,
+        .reliability = UXR_RELIABILITY_BEST_EFFORT,
+        .history = UXR_HISTORY_KEEP_LAST,
+        .depth = 5,
+    },
+},
+#endif // AP_DDS_GPS_GLOBAL_ORIGIN_PUB_ENABLED
+#if AP_DDS_JOY_SUB_ENABLED
+{
+    .topic_id = to_underlying(TopicIndex::JOY_SUB),
+    .pub_id = to_underlying(TopicIndex::JOY_SUB),
+    .sub_id = to_underlying(TopicIndex::JOY_SUB),
+    .dw_id = uxrObjectId{.id=to_underlying(TopicIndex::JOY_SUB), .type=UXR_DATAWRITER_ID},
+    .dr_id = uxrObjectId{.id=to_underlying(TopicIndex::JOY_SUB), .type=UXR_DATAREADER_ID},
+    .topic_rw = Topic_rw::DataReader,
+    .topic_name = "rt/ap/joy",
+    .type_name = "sensor_msgs::msg::dds_::Joy_",
+    .qos = {
+        .durability = UXR_DURABILITY_VOLATILE,
+        .reliability = UXR_RELIABILITY_BEST_EFFORT,
+        .history = UXR_HISTORY_KEEP_LAST,
+        .depth = 5,
+    },
+},
+#endif // AP_DDS_JOY_SUB_ENABLED
+#if AP_DDS_DYNAMIC_TF_SUB
+{
+    .topic_id = to_underlying(TopicIndex::DYNAMIC_TRANSFORMS_SUB),
+    .pub_id = to_underlying(TopicIndex::DYNAMIC_TRANSFORMS_SUB),
+    .sub_id = to_underlying(TopicIndex::DYNAMIC_TRANSFORMS_SUB),
+    .dw_id = uxrObjectId{.id=to_underlying(TopicIndex::DYNAMIC_TRANSFORMS_SUB), .type=UXR_DATAWRITER_ID},
+    .dr_id = uxrObjectId{.id=to_underlying(TopicIndex::DYNAMIC_TRANSFORMS_SUB), .type=UXR_DATAREADER_ID},
+    .topic_rw = Topic_rw::DataReader,
+    .topic_name = "rt/ap/tf",
+    .type_name = "tf2_msgs::msg::dds_::TFMessage_",
+    .qos = {
+        .durability = UXR_DURABILITY_VOLATILE,
+        .reliability = UXR_RELIABILITY_BEST_EFFORT,
+        .history = UXR_HISTORY_KEEP_LAST,
+        .depth = 5,
+    },
+},
+#endif // AP_DDS_DYNAMIC_TF_SUB
+#if AP_DDS_VEL_CTRL_ENABLED
+{
+    .topic_id = to_underlying(TopicIndex::VELOCITY_CONTROL_SUB),
+    .pub_id = to_underlying(TopicIndex::VELOCITY_CONTROL_SUB),
+    .sub_id = to_underlying(TopicIndex::VELOCITY_CONTROL_SUB),
+    .dw_id = uxrObjectId{.id=to_underlying(TopicIndex::VELOCITY_CONTROL_SUB), .type=UXR_DATAWRITER_ID},
+    .dr_id = uxrObjectId{.id=to_underlying(TopicIndex::VELOCITY_CONTROL_SUB), .type=UXR_DATAREADER_ID},
+    .topic_rw = Topic_rw::DataReader,
+    .topic_name = "rt/ap/cmd_vel",
+    .type_name = "geometry_msgs::msg::dds_::TwistStamped_",
+    .qos = {
+        .durability = UXR_DURABILITY_VOLATILE,
+        .reliability = UXR_RELIABILITY_BEST_EFFORT,
+        .history = UXR_HISTORY_KEEP_LAST,
+        .depth = 5,
+    },
+},
+#endif // AP_DDS_VEL_CTRL_ENABLED
+#if AP_DDS_GLOBAL_POS_CTRL_ENABLED
+{
+    .topic_id = to_underlying(TopicIndex::GLOBAL_POSITION_SUB),
+    .pub_id = to_underlying(TopicIndex::GLOBAL_POSITION_SUB),
+    .sub_id = to_underlying(TopicIndex::GLOBAL_POSITION_SUB),
+    .dw_id = uxrObjectId{.id=to_underlying(TopicIndex::GLOBAL_POSITION_SUB), .type=UXR_DATAWRITER_ID},
+    .dr_id = uxrObjectId{.id=to_underlying(TopicIndex::GLOBAL_POSITION_SUB), .type=UXR_DATAREADER_ID},
+    .topic_rw = Topic_rw::DataReader,
+    .topic_name = "rt/ap/cmd_gps_pose",
+    .type_name = "ardupilot_msgs::msg::dds_::GlobalPosition_",
+    .qos = {
+        .durability = UXR_DURABILITY_VOLATILE,
+        .reliability = UXR_RELIABILITY_BEST_EFFORT,
+        .history = UXR_HISTORY_KEEP_LAST,
+        .depth = 5,
+    },
+},
+#endif // AP_DDS_GLOBAL_POS_CTRL_ENABLED
 
