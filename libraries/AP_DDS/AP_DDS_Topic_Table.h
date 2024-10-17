@@ -205,25 +205,8 @@ constexpr struct AP_DDS_Client::Topic_table AP_DDS_Client::topics[] = {
         },
     },
 #endif // AP_DDS_LOCAL_VEL_PUB_ENABLED
-#if AP_DDS_AIRSPEED_PUB_ENABLED
-    {
-        .topic_id = to_underlying(TopicIndex::LOCAL_AIRSPEED_PUB),
-        .pub_id = to_underlying(TopicIndex::LOCAL_AIRSPEED_PUB),
-        .sub_id = to_underlying(TopicIndex::LOCAL_AIRSPEED_PUB),
-        .dw_id = uxrObjectId{.id=to_underlying(TopicIndex::LOCAL_AIRSPEED_PUB), .type=UXR_DATAWRITER_ID},
-        .dr_id = uxrObjectId{.id=to_underlying(TopicIndex::LOCAL_AIRSPEED_PUB), .type=UXR_DATAREADER_ID},
-        .topic_rw = Topic_rw::DataWriter,
-        .topic_name = "rt/ap/airspeed",
-        .type_name = "geometry_msgs::msg::dds_::Vector3Stamped_",
-        .qos = {
-            .durability = UXR_DURABILITY_VOLATILE,
-            .reliability = UXR_RELIABILITY_BEST_EFFORT,
-            .history = UXR_HISTORY_KEEP_LAST,
-            .depth = 5,
-        },
-    },
 
-    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~DIY PUB~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~DIY PUB~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~DIY PUB~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~DIY PUB~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 #if AP_DDS_WRE_OUT_PUB_ENABLED
@@ -248,6 +231,26 @@ constexpr struct AP_DDS_Client::Topic_table AP_DDS_Client::topics[] = {
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~END~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~END~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~END~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#if AP_DDS_AIRSPEED_PUB_ENABLED
+    {
+        .topic_id = to_underlying(TopicIndex::LOCAL_AIRSPEED_PUB),
+        .pub_id = to_underlying(TopicIndex::LOCAL_AIRSPEED_PUB),
+        .sub_id = to_underlying(TopicIndex::LOCAL_AIRSPEED_PUB),
+        .dw_id = uxrObjectId{.id=to_underlying(TopicIndex::LOCAL_AIRSPEED_PUB), .type=UXR_DATAWRITER_ID},
+        .dr_id = uxrObjectId{.id=to_underlying(TopicIndex::LOCAL_AIRSPEED_PUB), .type=UXR_DATAREADER_ID},
+        .topic_rw = Topic_rw::DataWriter,
+        .topic_name = "rt/ap/airspeed",
+        .type_name = "geometry_msgs::msg::dds_::Vector3Stamped_",
+        .qos = {
+            .durability = UXR_DURABILITY_VOLATILE,
+            .reliability = UXR_RELIABILITY_BEST_EFFORT,
+            .history = UXR_HISTORY_KEEP_LAST,
+            .depth = 5,
+        },
+    },
+
+   
 
 #endif // AP_DDS_AIRSPEED_PUB_ENABLED
 #if AP_DDS_GEOPOSE_PUB_ENABLED
