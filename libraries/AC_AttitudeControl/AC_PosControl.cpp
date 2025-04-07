@@ -475,8 +475,8 @@ void AC_PosControl::init_xy_controller_stopping_point()
 {
     init_xy_controller();
 
-    get_stopping_point_xy_cm(_pos_desired.xy());
-    _pos_target.xy() = _pos_desired.xy();// + 0.0f*_pos_offset.xy();
+    //get_stopping_point_xy_cm(_pos_desired.xy());
+    //_pos_target.xy() = _pos_desired.xy();// + _pos_offset.xy();
     _vel_desired.xy().zero();
     _accel_desired.xy().zero();
 }
@@ -501,7 +501,7 @@ void AC_PosControl::soften_for_landing_xy()
     // decay position error to zero
     if (is_positive(_dt)) {
         _pos_target.xy() += (_inav.get_position_xy_cm().topostype() - _pos_target.xy()) * (_dt / (_dt + POSCONTROL_RELAX_TC));
-        _pos_desired.xy() = _pos_target.xy();// - 0.0f*_pos_offset.xy();
+        //_pos_desired.xy() = _pos_target.xy();// - _pos_offset.xy();
     }
 
     // Prevent I term build up in xy velocity controller.
@@ -525,7 +525,7 @@ void AC_PosControl::init_xy_controller()
     _angle_max_override_cd = 0.0;
 
     _pos_target.xy() = _inav.get_position_xy_cm().topostype();
-    _pos_desired.xy() = _pos_target.xy();// - 0.0f*_pos_offset.xy();
+    //_pos_desired.xy() = _pos_target.xy();// - _pos_offset.xy();
 
     _vel_target.xy() = _inav.get_velocity_xy_cms();
     _vel_desired.xy() = _vel_target.xy() - _vel_offset.xy();
@@ -621,15 +621,15 @@ void AC_PosControl::update_offsets_xy()
 /// stop_pos_xy_stabilisation - sets the target to the current position to remove any position corrections from the system
 void AC_PosControl::stop_pos_xy_stabilisation()
 {
-    _pos_target.xy() = _inav.get_position_xy_cm().topostype();
-    _pos_desired.xy() = _pos_target.xy();// - 0.0f*_pos_offset.xy();
+    //_pos_target.xy() = _inav.get_position_xy_cm().topostype();
+    //_pos_desired.xy() = _pos_target.xy();//-_pos_offset.xy();
 }
 
 /// stop_vel_xy_stabilisation - sets the target to the current position and velocity to the current velocity to remove any position and velocity corrections from the system
 void AC_PosControl::stop_vel_xy_stabilisation()
 {
     _pos_target.xy() =  _inav.get_position_xy_cm().topostype();
-    _pos_desired.xy() = _pos_target.xy();// - _pos_offset.xy();
+    //_pos_desired.xy() = _pos_target.xy();// - _pos_offset.xy();
     
     _vel_target.xy() = _inav.get_velocity_xy_cms();;
     _vel_desired.xy() = _vel_target.xy() - _vel_offset.xy();
@@ -685,7 +685,7 @@ void AC_PosControl::update_xy_controller()
 
     // Position Controller
 
-    _pos_target.xy() = _pos_desired.xy();// + 0.0f * _pos_offset.xy(); //对XY目标位置进行赋值：期望位置+偏移量补偿，这个_pos_target.xy()值是实时更新的
+    //_pos_target.xy() = _pos_desired.xy();// + _pos_offset.xy(); //对XY目标位置进行赋值：期望位置+偏移量补偿，这个_pos_target.xy()值是实时更新的
 
     // determine the combined position of the actual position and the disturbance from system ID mode
     const Vector3f &curr_pos = _inav.get_position_neu_cm();  //通过 `inav` 系统获取无人机在北-东-上（NEU）坐标系中的位置，单位是厘米。
@@ -693,7 +693,7 @@ void AC_PosControl::update_xy_controller()
     comb_pos.xy() += _disturb_pos; //取得 `comb_pos` 的 x 和 y 分量，形成一个二维向量并在当前位置加上干扰的位置
 
     Vector2f vel_target = _p_pos_xy.update_all(_pos_target.x, _pos_target.y, comb_pos); //`_p_pos_xy` 是一个用于横向位置控制的P（比例）控制器。控制器输出目标速度
-    _pos_desired.xy() = _pos_target.xy();// - _pos_offset.xy(); //对XY期望位置进行再赋值：这个值也是实时更新的
+    //_pos_desired.xy() = _pos_target.xy();// - _pos_offset.xy(); //对XY期望位置进行再赋值：这个值也是实时更新的
 
     // Velocity Controller
 
@@ -1177,13 +1177,15 @@ float AC_PosControl::disturb(float frequency)
 ///     Position and velocity errors are converted to velocity and acceleration targets using PID objects
 ///     Desired velocity and accelerations are added to these corrections as they are calculated
 ///     Kinematically consistent target position and desired velocity and accelerations should be provided before calling this function
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~垂直位置控制器更新~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~垂直位置控制器更新~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~垂直位置控制器更新（pdnn位置控制）~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~垂直位置控制器更新（pdnn位置控制）~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~update_z_controller~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 void AC_PosControl::update_z_controller()
 {
     // check for ekf z-axis position reset
     handle_ekf_z_reset(); //检查 EKF z 轴位置重置
+    // check for ekf xy position reset // 卡尔曼滤波器 EKF XY 位置重置检查
+    handle_ekf_xy_reset();//检查 EKF xy 轴位置重置
 
     // Check for z_controller time out
     if (!is_active_z()) {  //如果垂直位置控制不活跃
@@ -1193,6 +1195,8 @@ void AC_PosControl::update_z_controller()
             INTERNAL_ERROR(AP_InternalError::error_t::flow_of_control); ////逻辑：如果不活跃，且初始化后，时间同步正常，则报错有内部错误
         }
     }
+
+    
     _last_update_z_ticks = AP::scheduler().ticks32(); ////更新最后一次控制器调用时间，ticks32() 是一个方法，返回系统当前的32位时间戳，其返回值用于计算时间间隔dt_ticks
 
     // update the position, velocity and acceleration offsets
@@ -1214,9 +1218,9 @@ void AC_PosControl::update_z_controller()
     Vector3f pos_meas_ned = pos_meas_neu;   
     pos_meas_ned.z = -pos_meas_neu.z;                        //转化测量位置为ned
     Vector3f _pos_desired_3f;                                //转换数据类型为Vector3f
-    _pos_desired_3f.x = pos_desired_x_set_update(_pos_desired.x,400.0f, 1.0f, 400.0f);     //转换数据类型为Vector3f,update函数为平滑轨迹函数
-    _pos_desired_3f.y = pos_desired_y_set_update(_pos_desired.y,400.0f, 1.0f, 400.0f);     //转换数据类型为Vector3f,update函数为平滑轨迹函数                
-    _pos_desired_3f.z = - pos_desired_z_set_update(_pos_desired.z,400.0f, 0.5f, 400.0f);   //转换数据类型为Vector3f，并可以将原本的NEU期望坐标，改变正负转换为NED。这里给出的目标高度需要平滑
+    _pos_desired_3f.x = _pos_desired.x;//pos_desired_x_set_update(_pos_desired.x, 2000.0f, 0.5f, 400.0f);     //转换数据类型为Vector3f,update函数为平滑轨迹函数
+    _pos_desired_3f.y = _pos_desired.y;//pos_desired_y_set_update(_pos_desired.y, 2000.0f, 0.5f, 400.0f);     //转换数据类型为Vector3f,update函数为平滑轨迹函数                
+    _pos_desired_3f.z = - pos_desired_z_set_update(_pos_desired.z,400.0f, 0.6f, 400.0f);   //转换数据类型为Vector3f，并可以将原本的NEU期望坐标，改变正负转换为NED。这里给出的目标高度需要平滑
     Vector3f _acc_desired_3f;
     _acc_desired_3f.x = 0.0f;
     _acc_desired_3f.y = 0.0f;
@@ -1235,7 +1239,7 @@ void AC_PosControl::update_z_controller()
     fd = -_U_x.dot(_R_body_to_ned_meas.colz());                  //colz是拷贝取值，fd=U_x * Re3
     float fd_nor;
     fd_nor = fd/66.67f;                                         // fd_nor = fd/f_max，除以预设的无人机最大推力进行归一化
-    float test_msg_1 = _pos_desired_3f.z;
+    float test_msg_1 = _pos_desired.x;
     float test_msg_2 = _pdnn_pos.get_phi().x; 
     current_DIYwrench = get_DIYwrench(test_msg_1, test_msg_2); //用于ROS2推力话题 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~END~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1323,7 +1327,7 @@ void AC_PosControl::set_pos_vel_accel(const Vector3p& pos, const Vector3f& vel, 
 /// set the desired position, velocity and acceleration targets
 void AC_PosControl::set_pos_vel_accel_xy(const Vector2p& pos, const Vector2f& vel, const Vector2f& accel)
 {
-    _pos_desired.xy() = pos;
+    //_pos_desired.xy() = pos;
     _vel_desired.xy() = vel;
     _accel_desired.xy() = accel;
 }
@@ -1738,7 +1742,7 @@ void AC_PosControl::handle_ekf_xy_reset()
 
         // To zero real position shift during relative position modes like Loiter, PosHold, Guided velocity and accleration control.
         _pos_target.xy() = (_inav.get_position_xy_cm() + _p_pos_xy.get_error()).topostype();
-        _pos_desired.xy() = _pos_target.xy();// - 0.0f *_pos_offset.xy();
+        //_pos_desired.xy() = _pos_target.xy();// - _pos_offset.xy();
         _vel_target.xy() = _inav.get_velocity_xy_cms() + _pid_vel_xy.get_error();
         _vel_desired.xy() = _vel_target.xy() - _vel_offset.xy();
 

@@ -738,7 +738,7 @@ void ModeGuided::pos_control_run()
     pos_control->input_pos_xyz(guided_pos_target_cm, terr_offset, pos_offset_z_buffer);
 
     // run position controllers
-    pos_control->update_xy_controller();
+    //pos_control->update_xy_controller();
 
     pos_control->update_z_controller();
 
@@ -791,7 +791,7 @@ void ModeGuided::accel_control_run()
     }
 
     // call velocity controller which includes z axis controller
-    pos_control->update_xy_controller();
+    //pos_control->update_xy_controller();
     pos_control->update_z_controller();
 
     // call attitude controller with auto yaw
@@ -846,7 +846,7 @@ void ModeGuided::velaccel_control_run()
     pos_control->input_vel_accel_z(guided_vel_target_cms.z, guided_accel_target_cmss.z, false);
 
     // call velocity controller which includes z axis controller
-    pos_control->update_xy_controller();
+    //pos_control->update_xy_controller();
     pos_control->update_z_controller();
 
     // call attitude controller with auto yaw
@@ -876,7 +876,7 @@ void ModeGuided::pause_control_run()
     pos_control->input_vel_accel_z(vel_z, 0.0, false);
 
     // call velocity controller which includes z axis controller
-    pos_control->update_xy_controller();
+    //pos_control->update_xy_controller();
     pos_control->update_z_controller();
 
     // call attitude controller
@@ -911,7 +911,7 @@ void ModeGuided::posvelaccel_control_run()
     if (!stabilizing_vel_xy()) {
         // set the current commanded xy pos to the target pos and xy vel to the desired vel
         guided_pos_target_cm.xy() = pos_control->get_pos_desired_cm().xy();
-        guided_vel_target_cms.xy() = pos_control->get_vel_desired_cms().xy();
+        guided_vel_target_cms = pos_control->get_vel_desired_cms();
     } else if (!stabilizing_pos_xy()) {
         // set the current commanded xy pos to the target pos
         guided_pos_target_cm.xy() = pos_control->get_pos_desired_cm().xy();
@@ -935,7 +935,7 @@ void ModeGuided::posvelaccel_control_run()
     guided_pos_target_cm.z = pz;
 
     // run position controllers
-    pos_control->update_xy_controller();
+    //pos_control->update_xy_controller();
     pos_control->update_z_controller();
 
     // call attitude controller with auto yaw

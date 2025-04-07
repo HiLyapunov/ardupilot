@@ -10,7 +10,8 @@
     LOG_PSOE_MSG, \
     LOG_PSOD_MSG, \
     LOG_PSOT_MSG, \
-    LOG_ANG_MSG
+    LOG_ANG_MSG, \
+    LOG_SANMPOS_MSG, //新建自定义log
 
 // @LoggerMessage: PSCN
 // @Description: Position Control North
@@ -174,6 +175,21 @@ struct PACKED log_ANG {
     float yaw;
     float sensor_dt;
 };
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~新建自定义的log~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+struct PACKED log_SANMPOSx {
+    LOG_PACKET_HEADER;
+    uint64_t time_us;
+    float data1;
+    float data2;
+    float data3;
+    float data4;
+    float data5;
+    float data6;
+    float data7;
+    float data8;
+    float data9;
+};
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~End~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #define PSCx_FMT "Qfffffffff"
 #define PSCx_UNITS "smmmnnnooo"

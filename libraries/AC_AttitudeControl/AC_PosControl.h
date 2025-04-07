@@ -21,12 +21,12 @@
 
 // position controller default definitions
 #define POSCONTROL_ACCEL_XY                     100.0f  // default horizontal acceleration in cm/s/s.  This is overwritten by waypoint and loiter controllers
-#define POSCONTROL_JERK_XY                      5.0f    // default horizontal jerk m/s/s/s
+#define POSCONTROL_JERK_XY                      3.0f    // default horizontal jerk m/s/s/s//加加速度最大限制，调节这个值可以让期望轨迹的smooth更缓慢平滑
 
 #define POSCONTROL_STOPPING_DIST_UP_MAX         300.0f  // max stopping distance (in cm) vertically while climbing
 #define POSCONTROL_STOPPING_DIST_DOWN_MAX       200.0f  // max stopping distance (in cm) vertically while descending
 
-#define POSCONTROL_SPEED                        500.0f  // default horizontal speed in cm/s
+#define POSCONTROL_SPEED                        200.0f  // default horizontal speed in cm/s //速度最大限制，调节这个值可以让期望轨迹的smooth更缓慢平滑
 #define POSCONTROL_SPEED_DOWN                  -150.0f  // default descent rate in cm/s
 #define POSCONTROL_SPEED_UP                     250.0f  // default climb rate in cm/s
 
@@ -133,6 +133,7 @@ public:
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~平滑期望高度函数~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     float pos_desired_z_set_update(float z_final, float max_alt, float rate, float frequency);
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~END~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    
 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~扰动函数~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     float disturb(float frequency);
@@ -292,7 +293,8 @@ public:
     void set_pos_desired_xy_cm(const Vector2f& pos) { _pos_desired.xy() = pos.topostype(); }
 
     /// get_pos_desired_cm - returns the position desired, frame NEU in cm relative to the EKF origin
-    const Vector3p& get_pos_desired_cm() const { return _pos_desired; } //moed_guided.cpp通过这里的getter，传输期望位置信息到poscontrol
+    const Vector3p& get_pos_desired_cm() const { return _pos_desired; } //通过这里的getter，从moed_guided.cpp获取期望位置信息到
+    /// get_pos_desired_cm - returns the position desired, frame NEU in cm relative to the EKF origin
 
     /// get_pos_target_z_cm - get target altitude (in cm above the EKF origin)
     float get_pos_target_z_cm() const { return _pos_target.z; }
@@ -490,6 +492,10 @@ public:
     static void Write_PSOE(float pos_target_offset_cm, float pos_offset_cm, float vel_target_offset_cms, float vel_offset_cms, float accel_target_offset_cmss, float accel_offset_cmss);
     static void Write_PSOD(float pos_target_offset_cm, float pos_offset_cm, float vel_target_offset_cms, float vel_offset_cms, float accel_target_offset_cmss, float accel_offset_cmss);
     static void Write_PSOT(float pos_target_offset_cm, float pos_offset_cm, float vel_target_offset_cms, float vel_offset_cms, float accel_target_offset_cmss, float accel_offset_cmss);
+    // 新建自定义的POS控制中的log数据
+    static void Write_SANMPOS(float data1, float data2, float data3, float data4, float data5, float data6, float data7, float data8, float data9);
+
+    
 
     // singleton
     static AC_PosControl *get_singleton(void) { return _singleton; }
@@ -645,6 +651,8 @@ private:
     static void Write_PSOx(LogMessages id, float pos_target_offset_cm, float pos_offset_cm,
                            float vel_target_offset_cms, float vel_offset_cms,
                            float accel_target_offset_cmss, float accel_offset_cmss);
+    // 新建自定义的log
+    static void Write_SANMPOSx(LogMessages ID, float data1, float data2, float data3, float data4, float data5, float data6, float data7, float data8, float data9);
 
     // singleton
     static AC_PosControl *_singleton;

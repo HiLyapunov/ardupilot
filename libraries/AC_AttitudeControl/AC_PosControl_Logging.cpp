@@ -86,5 +86,24 @@ void AC_PosControl::Write_PSOT(float pos_target_offset_cm, float pos_offset_cm,
 {
     Write_PSOx(LOG_PSOT_MSG, pos_target_offset_cm, pos_offset_cm, vel_target_offset_cms, vel_offset_cms, accel_target_offset_cmss, accel_offset_cmss);
 }
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~新建自定义的log~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+void AC_PosControl::Write_SANMPOSx(LogMessages id, float data1, float data2, float data3, float data4, float data5, float data6, float data7, float data8, float data9)
+{
+    const struct log_SANMPOSx pkt{
+        LOG_PACKET_HEADER_INIT(id),
+            time_us         : AP_HAL::micros64(),
+            data1   : data1 * 1.0f,
+            data1    : data1 * 1.0f,
+            data1           : data1 * 1.0f,
+            data1   : data1 * 1.0f,
+            data1    : data1 * 1.0f,
+            data1           : data1 * 1.0f,
+            data1 : data1 * 1.0f,
+            data1  : data1 * 1.0f,
+            data1         : data1 * 1.0f
+    };
+    AP::logger().WriteBlock(&pkt, sizeof(pkt));
+}
+
 
 #endif  // HAL_LOGGING_ENABLED
