@@ -96,26 +96,26 @@ public:
     AP_PDNNSO3Info _pdnn_info_z;
 
     //声明滤波前权重
-    float W_x_1,W_x_2,W_x_3,W_x_4,W_x_5; //x方向神经网路的权重
-    float W_y_1,W_y_2,W_y_3,W_y_4,W_y_5; //y方向神经网路的权重
-    float W_z_1,W_z_2,W_z_3,W_z_4,W_z_5; //z方向神经网路的权重
+    float W_x_1,W_x_2,W_x_3,W_x_4,W_x_5,W_x_6,W_x_7; //x方向神经网路的权重
+    float W_y_1,W_y_2,W_y_3,W_y_4,W_y_5,W_y_6,W_y_7; //y方向神经网路的权重
+    float W_z_1,W_z_2,W_z_3,W_z_4,W_z_5,W_z_6,W_z_7; //z方向神经网路的权重
     //声明滤波后权重
-    float _W_x_1,_W_x_2,_W_x_3,_W_x_4,_W_x_5; //x方向神经网路的权重
-    float _W_y_1,_W_y_2,_W_y_3,_W_y_4,_W_y_5; //y方向神经网路的权重
-    float _W_z_1,_W_z_2,_W_z_3,_W_z_4,_W_z_5; //z方向神经网路的权重
+    float _W_x_1,_W_x_2,_W_x_3,_W_x_4,_W_x_5,_W_x_6,_W_x_7; //x方向神经网路的权重
+    float _W_y_1,_W_y_2,_W_y_3,_W_y_4,_W_y_5,_W_y_6,_W_y_7; //y方向神经网路的权重
+    float _W_z_1,_W_z_2,_W_z_3,_W_z_4,_W_z_5,_W_z_6,_W_z_7; //z方向神经网路的权重
 
     //声明 特定方向 隐藏层输入2*1
     Vector2f _X_x, _X_y, _X_z;
 
     //声明隐藏层输出
-    float _h_x_1,_h_x_2,_h_x_3,_h_x_4,_h_x_5; //x方向第j个神经网路的隐藏层
-    float _h_y_1,_h_y_2,_h_y_3,_h_y_4,_h_y_5; //y方向第j个神经网路的隐藏层
-    float _h_z_1,_h_z_2,_h_z_3,_h_z_4,_h_z_5; //z方向第j个神经网路的隐藏层
+    float _h_x_1,_h_x_2,_h_x_3,_h_x_4,_h_x_5,_h_x_6,_h_x_7; //x方向第j个神经网路的隐藏层
+    float _h_y_1,_h_y_2,_h_y_3,_h_y_4,_h_y_5,_h_y_6,_h_y_7; //y方向第j个神经网路的隐藏层
+    float _h_z_1,_h_z_2,_h_z_3,_h_z_4,_h_z_5,_h_z_6,_h_z_7; //z方向第j个神经网路的隐藏层
 
     //声明权重更新律
-    float _dot_W_x_1,_dot_W_x_2,_dot_W_x_3, _dot_W_x_4, _dot_W_x_5; //x方向第j个权重更新律
-    float _dot_W_y_1,_dot_W_y_2,_dot_W_y_3, _dot_W_y_4, _dot_W_y_5; //y方向第j个权重更新律
-    float _dot_W_z_1,_dot_W_z_2,_dot_W_z_3, _dot_W_z_4, _dot_W_z_5; //y方向第j个权重更新律
+    float _dot_W_x_1,_dot_W_x_2,_dot_W_x_3, _dot_W_x_4, _dot_W_x_5, _dot_W_x_6, _dot_W_x_7; //x方向第j个权重更新律
+    float _dot_W_y_1,_dot_W_y_2,_dot_W_y_3, _dot_W_y_4, _dot_W_y_5, _dot_W_y_6, _dot_W_y_7; //y方向第j个权重更新律
+    float _dot_W_z_1,_dot_W_z_2,_dot_W_z_3, _dot_W_z_4, _dot_W_z_5, _dot_W_z_6, _dot_W_z_7; //y方向第j个权重更新律
 
     //声明神经网络输出
     float _phi_x,_phi_y,_phi_z;
