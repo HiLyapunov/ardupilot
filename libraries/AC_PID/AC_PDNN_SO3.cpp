@@ -253,7 +253,7 @@ Vector3f AC_PDNN_SO3::update_all(const Matrix3f &R_c, const Matrix3f &R, const V
 // —— 学习抑制与界约束参数（与 S-Function 保持一致）——
 const float c_R  = 0.6f;       // 复合误差系数
 const float zeta = 0.005f;    // 死区阈值：‖[e_R; e_Ω]‖ <= zeta → 停止学习
-const float Wmax = 500.0f;     // 权重范数上限（球半径）
+const float Wmax = 1.0f;     // 权重范数上限（球半径）
 
 //——— X 轴 ———
 {
@@ -430,7 +430,7 @@ const float Wmax = 500.0f;     // 权重范数上限（球半径）
         //(void)_phi_x;
         //(void)_phi_y;
         //(void)_phi_z;//暂时标记为未使用，避免报错
-        }
+        
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~END~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~自适应律~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         
@@ -438,7 +438,6 @@ const float Wmax = 500.0f;     // 权重范数上限（球半径）
         //~~~~~x方向
         float _eta_x = 0.05f; //定义自适应律参数，eta越大越平滑
         float _s_x = 0.02f;  //定义缩放因子
-        float c_R = 0.6f;
         if ((_e_Omega.x + c_R * _e_R.x) * _pdnn_output.x > 0 )
         {
             _dot_J_x = -(_J_x * _J_x) / _eta_x * (_e_Omega.x + c_R * _e_R.x) * _pdnn_output.x;
@@ -511,6 +510,8 @@ const float Wmax = 500.0f;     // 权重范数上限（球半径）
         //x方向的自适应参数_m_x
           _J_z += _dot_J_z * dt;
         }
+        
+        }
 
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~END~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -542,13 +543,13 @@ const float Wmax = 500.0f;     // 权重范数上限（球半径）
     //(void)_geomrtry_output;
 
     //计算总输出，每个方向上乘以惯性张量
-    //_pdnn_output.x = _J_x * (-_e_R.x * 40.0f - _e_Omega.x * 80.0f - 0.0f * _integrator.x - _geomrtry_output.x - 1.0f *_phi_x + 0.0f*Aug.x); 
-    //_pdnn_output.y = _J_y * (-_e_R.y * 40.0f - _e_Omega.y * 80.0f - 0.0f *_integrator.y - _geomrtry_output.y- 1.0f * _phi_y + 0.0f*Aug.y);
-    //_pdnn_output.z = _J_z * (-_e_R.z * 40.0f - _e_Omega.z * 80.0f - 0.0f *_integrator.z - _geomrtry_output.z - 1.0f *_phi_z + 0.0f*Aug.z); //偏航误差e_R.z很容易就趋近于0，会导致无法满足持续激励假设
+    _pdnn_output.x = _J_x * (-_e_R.x * 100.0f - _e_Omega.x * 80.0f - 0.0f * _integrator.x - _geomrtry_output.x - 1.0f *_phi_x + 0.0f*Aug.x); 
+    _pdnn_output.y = _J_y * (-_e_R.y * 100.0f - _e_Omega.y * 80.0f - 0.0f *_integrator.y - _geomrtry_output.y- 1.0f * _phi_y + 0.0f*Aug.y);
+    _pdnn_output.z = _J_z * (-_e_R.z * 100.0f - _e_Omega.z * 80.0f - 0.0f *_integrator.z - _geomrtry_output.z - 1.0f *_phi_z + 0.0f*Aug.z); //偏航误差e_R.z很容易就趋近于0，会导致无法满足持续激励假设
     
-    _pdnn_output.x = 0.01f * (-_e_R.x * 100.0f - _e_Omega.x * 80.0f - 0.0f * _integrator.x - _geomrtry_output.x - 1.0f *_phi_x + 0.0f*Aug.x); 
-    _pdnn_output.y = 0.01f * (-_e_R.y * 100.0f - _e_Omega.y * 80.0f - 0.0f *_integrator.y - _geomrtry_output.y- 1.0f * _phi_y + 0.0f*Aug.y);
-    _pdnn_output.z = 0.02f * (-_e_R.z * 100.0f - _e_Omega.z * 80.0f - 0.0f *_integrator.z - _geomrtry_output.z - 1.0f *_phi_z + 0.0f*Aug.z); //偏航误差e_R.z很容易就趋近于0，会导致无法满足持续激励假设
+    //_pdnn_output.x = 0.01f * (-_e_R.x * 100.0f - _e_Omega.x * 80.0f - 0.0f * _integrator.x - _geomrtry_output.x - 1.0f *_phi_x + 0.0f*Aug.x); 
+    //_pdnn_output.y = 0.01f * (-_e_R.y * 100.0f - _e_Omega.y * 80.0f - 0.0f *_integrator.y - _geomrtry_output.y- 1.0f * _phi_y + 0.0f*Aug.y);
+    //_pdnn_output.z = 0.02f * (-_e_R.z * 100.0f - _e_Omega.z * 80.0f - 0.0f *_integrator.z - _geomrtry_output.z - 1.0f *_phi_z + 0.0f*Aug.z); //偏航误差e_R.z很容易就趋近于0，会导致无法满足持续激励假设
 
     return _pdnn_output; //返回pdnn控制器输出
 }

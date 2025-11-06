@@ -750,8 +750,8 @@ void AC_PosControl::update_xy_controller()
 void AC_PosControl::init_Rc()
 {
        // 设置初始 解算体坐标系的各轴
-   _b_1c = Vector3f(1.0f, 0.0f, 0.0f);
-   _b_2c = Vector3f(0.0f, 1.0f, 0.0f); 
+   _b_1c = Vector3f(0.0f, 1.0f, 0.0f);
+   _b_2c = Vector3f(-1.0f, 0.0f, 0.0f); 
    _b_3c = Vector3f(0.0f, 0.0f, 1.0f);
 
    // 设置初始 解算旋转矩阵 _Rc 的各列
@@ -777,18 +777,15 @@ void AC_PosControl::update_Rc()
     }
    _last_update_Rc_ticks = AP::scheduler().ticks32(); //更新最后一次控制器调用时间，ticks32() 是一个方法，返回系统当前的32位时间戳，其返回值用于计算时间间隔dt_ticks
 //接下来计算b3c=fd/||fd||
-    if (!_U_x.is_zero()){  //如果fd不是零向量，则归一化后作为b3轴
-        _b_3c = -_U_x.normalized(); //使用NEU体坐标系则与推力方向同向+，NED则反向-
-        _b_1d = Vector3f(1.0f, 0.0f, 0.0f);//Vector3f(sqrt(3.0f)/2.0f, -0.5f, 0.0f); //设置 期望的b1d轴
-        //计算_b_2c轴
-        _b_2c = _b_3c.cross(_b_1d).normalized(); //NED是b3c X b1d后归一化
-        //计算_b_1c轴
-        _b_1c = _b_2c.cross(_b_3c);  //NED是b2c X b3c, NEU是b3c X b2c
+      //如果fd不是零向量，则归一化后作为b3轴
+        _b_1c = Vector3f(0.0f, 1.0f, 0.0f);
+        _b_2c = Vector3f(-1.0f, 0.0f, 0.0f);
+        _b_3c = Vector3f(0.0f, 0.0f, 1.0f);
         //更新_Rc
         _Rc.a.x = _b_1c.x; _Rc.a.y = _b_2c.x; _Rc.a.z = _b_3c.x; 
         _Rc.b.x = _b_1c.y; _Rc.b.y = _b_2c.y; _Rc.b.z = _b_3c.y; 
         _Rc.c.x = _b_1c.z; _Rc.c.y = _b_2c.z; _Rc.c.z = _b_3c.z; 
-    }
+    
    bool _Rc_active = is_active_Rc();
    _attitude_control.set_Rc(_Rc, _Rc_active); //发送给姿态控制
    
@@ -1209,19 +1206,19 @@ void AC_PosControl::update_z_controller()
     _pos_desired.z = _pos_target.z - (_pos_offset.z + _pos_terrain); //重新计算期望位置
 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~pdnn控制器~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    const Vector3f &pos_meas_neu = _inav.get_position_neu_cm();  //通过 `inav` 系统获取无人机在北-东-上（NEU）坐标系中的位置，单位是厘米。mocap中这里考虑替换为mocap位置反馈
-    Vector3f pos_meas_ned = pos_meas_neu;   
-    pos_meas_ned.z = -pos_meas_neu.z;                        //转化测量位置为ned
-    Vector3f _pos_desired_3f;                                //转换数据类型为Vector3f
-    _pos_desired_3f.x = 0.0f;//pos_desired_x_set_update(_pos_desired.x,400.0f, 1.0f, 400.0f);     //转换数据类型为Vector3f,update函数为平滑轨迹函数
-    _pos_desired_3f.y = 0.0f;//pos_desired_y_set_update(_pos_desired.y,400.0f, 1.0f, 400.0f);     //转换数据类型为Vector3f,update函数为平滑轨迹函数                
-    _pos_desired_3f.z = -pos_desired_z_set_update(_pos_desired.z,100.0f, 0.5f, 400.0f);   //转换数据类型为Vector3f，并可以将原本的NEU期望坐标，改变正负转换为NED。这里给出的目标高度需要平滑
-    Vector3f _acc_desired_3f;
-    _acc_desired_3f.x = 0.0f;
-    _acc_desired_3f.y = 0.0f;
-    _acc_desired_3f.z = 0.0f;
+    //const Vector3f &pos_meas_neu = _inav.get_position_neu_cm();  //通过 `inav` 系统获取无人机在北-东-上（NEU）坐标系中的位置，单位是厘米。mocap中这里考虑替换为mocap位置反馈
+    //Vector3f pos_meas_ned = pos_meas_neu;   
+    //pos_meas_ned.z = -pos_meas_neu.z;                        //转化测量位置为ned
+    //Vector3f _pos_desired_3f;                                //转换数据类型为Vector3f
+    //_pos_desired_3f.x = 0.0f;//pos_desired_x_set_update(_pos_desired.x,400.0f, 1.0f, 400.0f);     //转换数据类型为Vector3f,update函数为平滑轨迹函数
+    //_pos_desired_3f.y = 0.0f;//pos_desired_y_set_update(_pos_desired.y,400.0f, 1.0f, 400.0f);     //转换数据类型为Vector3f,update函数为平滑轨迹函数                
+    //_pos_desired_3f.z = -pos_desired_z_set_update(_pos_desired.z,100.0f, 0.5f, 400.0f);   //转换数据类型为Vector3f，并可以将原本的NEU期望坐标，改变正负转换为NED。这里给出的目标高度需要平滑
+    //Vector3f _acc_desired_3f;
+    //_acc_desired_3f.x = 0.0f;
+    //_acc_desired_3f.y = 0.0f;
+    //_acc_desired_3f.z = 0.0f;
 
-    _U_x = _pdnn_pos.update_all(_pos_desired_3f, pos_meas_ned,_acc_desired_3f, _dt); //调用pdnn控制器循环
+    //_U_x = _pdnn_pos.update_all(_pos_desired_3f, pos_meas_ned,_acc_desired_3f, _dt); //调用pdnn控制器循环
     //_U_x.y += disturb(400.0f); //加一个持续激励的扰动
 
     _R_body_to_ned_meas = _ahrs.get_rotation_body_to_ned(); //获取旋转矩阵测量值 body to NED，并传递给_R_body_to_ned_meas
@@ -1230,13 +1227,13 @@ void AC_PosControl::update_z_controller()
     //_R_body_to_neu_meas.b.z = _R_body_to_ned_meas.b.z; //注意这里容易有误区，ardupilot自带的_ahrs.get_rotation_body_to_ned()是将NEDbody转换到NEDearth
     //_R_body_to_neu_meas.c.z = _R_body_to_ned_meas.c.z;  //所以，这里只要无人机和大地我们都采用NEU，这种情况下旋转矩阵和都是NED的情况下是不变的
     
-    float fd;
-    fd = -_U_x.dot(_R_body_to_ned_meas.colz());                  //colz是拷贝取值，fd=U_x * Re3
+    //float fd;
+    //fd = -_U_x.dot(_R_body_to_ned_meas.colz());                  //colz是拷贝取值，fd=U_x * Re3
     float fd_nor;
-    fd_nor = fd/50.0f;                                         // fd_nor = fd/f_max，除以预设的无人机最大推力进行归一化
+    fd_nor = 0.30f;                                         // fd_nor = fd/f_max，除以预设的无人机最大推力进行归一化
     float test_msg_1 = -pos_desired_z_set_update(_pos_desired.z,200.0f, 0.5f, 400.0f);
-    float test_msg_2 = _pdnn_pos.get_phi().x; 
-    current_DIYwrench = get_DIYwrench(test_msg_1, test_msg_2); //用于ROS2推力话题 
+    //float test_msg_2 = _pdnn_pos.get_phi().x; 
+    current_DIYwrench = get_DIYwrench(test_msg_1, test_msg_1); //用于ROS2推力话题 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~END~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     // add feed forward component //目标速度，添加一些前馈
