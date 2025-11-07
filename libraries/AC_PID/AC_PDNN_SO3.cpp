@@ -253,7 +253,7 @@ Vector3f AC_PDNN_SO3::update_all(const Matrix3f &R_c, const Matrix3f &R, const V
 // —— 学习抑制与界约束参数（与 S-Function 保持一致）——
 const float c_R  = 0.6f;       // 复合误差系数
 const float zeta = 0.005f;    // 死区阈值：‖[e_R; e_Ω]‖ <= zeta → 停止学习
-const float Wmax = 1.0f;     // 权重范数上限（球半径）
+const float Wmax = 500.0f;     // 权重范数上限（球半径）
 
 //——— X 轴 ———
 {

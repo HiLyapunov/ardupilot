@@ -778,8 +778,8 @@ void AC_PosControl::update_Rc(bool notland)
    _last_update_Rc_ticks = AP::scheduler().ticks32(); //更新最后一次控制器调用时间，ticks32() 是一个方法，返回系统当前的32位时间戳，其返回值用于计算时间间隔dt_ticks
 //接下来计算b3c=fd/||fd||
       //如果fd不是零向量，则归一化后作为b3轴
-        _b_1c = Vector3f(0.0f, 1.0f, 0.0f);
-        _b_2c = Vector3f(-1.0f, 0.0f, 0.0f);
+        _b_1c = Vector3f(1.0f, 0.0f, 0.0f);
+        _b_2c = Vector3f(0.0f, 1.0f, 0.0f);
         _b_3c = Vector3f(0.0f, 0.0f, 1.0f);
         //更新_Rc
         _Rc.a.x = _b_1c.x; _Rc.a.y = _b_2c.x; _Rc.a.z = _b_3c.x; 
