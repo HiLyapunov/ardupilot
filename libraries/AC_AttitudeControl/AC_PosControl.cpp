@@ -777,14 +777,41 @@ void AC_PosControl::update_Rc(bool notland)
     }
    _last_update_Rc_ticks = AP::scheduler().ticks32(); //更新最后一次控制器调用时间，ticks32() 是一个方法，返回系统当前的32位时间戳，其返回值用于计算时间间隔dt_ticks
 //接下来计算b3c=fd/||fd||
-      //如果fd不是零向量，则归一化后作为b3轴
-        _b_1c = Vector3f(1.0f, 0.0f, 0.0f);
-        _b_2c = Vector3f(0.0f, 1.0f, 0.0f);
-        _b_3c = Vector3f(0.0f, 0.0f, 1.0f);
+    //如果fd不是零向量，则归一化后作为b3轴
+    static float _t = 0.0f;
+
+    if (notland){
+
+            // 更新时间
+    _t += 1.0f/400.0f;
+        // ====== 期望滚转：绕 b1 轴 ±45° 正弦振荡 ======
+    const float A = radians(45.0f);      // 振幅 45°
+    const float f = 0.3f;                // 振荡频率 [Hz]，可根据 testbed 能力调整
+    const float omega = 2.0f * M_PI * f; // 角频率
+    const float phi = A * sinf(omega * _t);
+    const float cphi = cosf(phi);
+    const float sphi = sinf(phi);
+
+    // 只绕 b1 = (1,0,0) 旋转：
+    // R_x(phi) = [1  0     0
+    //             0  cphi -sphi
+    //             0  sphi  cphi]
+    // 其中列向量即为机体系基向量 b1c, b2c, b3c
+    _b_1c = Vector3f(1.0f, 0.0f, 0.0f);
+    _b_2c = Vector3f(0.0f,  cphi,  sphi);
+    _b_3c = Vector3f(0.0f, -sphi,  cphi);
         //更新_Rc
         _Rc.a.x = _b_1c.x; _Rc.a.y = _b_2c.x; _Rc.a.z = _b_3c.x; 
         _Rc.b.x = _b_1c.y; _Rc.b.y = _b_2c.y; _Rc.b.z = _b_3c.y; 
         _Rc.c.x = _b_1c.z; _Rc.c.y = _b_2c.z; _Rc.c.z = _b_3c.z; 
+    } else {
+
+    _b_1c = Vector3f(1.0f, 0.0f, 0.0f);
+    _b_2c = Vector3f(0.0f, 1.0f, 0.0f);
+    _b_3c = Vector3f(0.0f, 0.0f, 1.0f);
+
+    }
+
     
     // 只有当 Rc 处于激活状态 且 飞控已解锁 时，才让姿态控制器使用 Rc
    bool _Rc_active = is_active_Rc() && notland;
