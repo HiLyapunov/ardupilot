@@ -750,8 +750,8 @@ void AC_PosControl::update_xy_controller()
 void AC_PosControl::init_Rc()
 {
        // 设置初始 解算体坐标系的各轴
-   _b_1c = Vector3f(0.0f, 1.0f, 0.0f);
-   _b_2c = Vector3f(-1.0f, 0.0f, 0.0f); 
+   _b_1c = Vector3f(1.0f, 0.0f, 0.0f);
+   _b_2c = Vector3f(0.0f, 1.0f, 0.0f); 
    _b_3c = Vector3f(0.0f, 0.0f, 1.0f);
 
    // 设置初始 解算旋转矩阵 _Rc 的各列
