@@ -767,7 +767,7 @@ void AC_PosControl::init_Rc()
 
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~期望（解算）旋转矩阵Rc更新主循环~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-void AC_PosControl::update_Rc()
+void AC_PosControl::update_Rc(bool notland)
 {
  // check for ekf xy position reset // 卡尔曼滤波器 EKF XY 位置重置检查
    handle_ekf_xy_reset();
@@ -786,8 +786,9 @@ void AC_PosControl::update_Rc()
         _Rc.b.x = _b_1c.y; _Rc.b.y = _b_2c.y; _Rc.b.z = _b_3c.y; 
         _Rc.c.x = _b_1c.z; _Rc.c.y = _b_2c.z; _Rc.c.z = _b_3c.z; 
     
-   bool _Rc_active = is_active_Rc();
-   _attitude_control.set_Rc(_Rc, _Rc_active); //发送给姿态控制
+    // 只有当 Rc 处于激活状态 且 飞控已解锁 时，才让姿态控制器使用 Rc
+   bool _Rc_active = is_active_Rc() && notland;
+   _attitude_control.set_Rc(_Rc, _Rc_active); //发送给姿态控制//逻辑：当R_c更新后调用姿态控制
    
 }
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~END~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1231,6 +1232,7 @@ void AC_PosControl::update_z_controller()
     //fd = -_U_x.dot(_R_body_to_ned_meas.colz());                  //colz是拷贝取值，fd=U_x * Re3
     float fd_nor;
     fd_nor = 0.30f;                                         // fd_nor = fd/f_max，除以预设的无人机最大推力进行归一化
+
     float test_msg_1 = -pos_desired_z_set_update(_pos_desired.z,200.0f, 0.5f, 400.0f);
     //float test_msg_2 = _pdnn_pos.get_phi().x; 
     current_DIYwrench = get_DIYwrench(test_msg_1, test_msg_1); //用于ROS2推力话题 
