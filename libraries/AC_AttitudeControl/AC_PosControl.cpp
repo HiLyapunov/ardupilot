@@ -814,7 +814,7 @@ void AC_PosControl::update_Rc(bool notland)
 
     
     // 只有当 Rc 处于激活状态 且 飞控已解锁 时，才让姿态控制器使用 Rc
-   bool _Rc_active = is_active_Rc() && notland;
+   bool _Rc_active = is_active_Rc();
    _attitude_control.set_Rc(_Rc, _Rc_active); //发送给姿态控制//逻辑：当R_c更新后调用姿态控制
    
 }
