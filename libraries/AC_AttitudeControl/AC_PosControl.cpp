@@ -785,7 +785,7 @@ void AC_PosControl::update_Rc(bool notland)
             // 更新时间
     _t += 1.0f/400.0f;
         // ====== 期望滚转：绕 b1 轴 ±45° 正弦振荡 ======
-    const float A = radians(45.0f);      // 振幅 45°
+    const float A = radians(10.0f);      // 振幅 45°
     const float f = 0.3f;                // 振荡频率 [Hz]，可根据 testbed 能力调整
     const float omega = 2.0f * M_PI * f; // 角频率
     const float phi = A * sinf(omega * _t);
@@ -1257,8 +1257,21 @@ void AC_PosControl::update_z_controller()
     
     //float fd;
     //fd = -_U_x.dot(_R_body_to_ned_meas.colz());                  //colz是拷贝取值，fd=U_x * Re3
-    float fd_nor;
-    fd_nor = 0.05f;                                         // fd_nor = fd/f_max，除以预设的无人机最大推力进行归一化
+   static float fd_nor = 0.05f;                                         // fd_nor = fd/f_max，除以预设的无人机最大推力进行归一化
+
+   static float _t = 0.0f;
+
+    // 更新时间
+    _t += 1.0f / 400.0f;
+
+    // 在 n 秒内从 0 线性上升到 fd_target
+    float ramp_time = 2.0f;          // n 秒内达到目标，可调
+    float fd_target = 0.3f;
+
+    if (_t < ramp_time)
+        fd_nor = fd_target * (_t / ramp_time);
+    else
+        fd_nor = fd_target;
 
     float test_msg_1 = -pos_desired_z_set_update(_pos_desired.z,200.0f, 0.5f, 400.0f);
     //float test_msg_2 = _pdnn_pos.get_phi().x; 
