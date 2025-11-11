@@ -767,7 +767,7 @@ void AC_PosControl::init_Rc()
 
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~期望（解算）旋转矩阵Rc更新主循环~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-void AC_PosControl::update_Rc(bool notland)
+void AC_PosControl::update_Rc()
 {
  // check for ekf xy position reset // 卡尔曼滤波器 EKF XY 位置重置检查
    handle_ekf_xy_reset();
@@ -780,7 +780,7 @@ void AC_PosControl::update_Rc(bool notland)
     //如果fd不是零向量，则归一化后作为b3轴
     static float _t = 0.0f;
 
-    if (notland){
+    if (_event_guided_mode){
 
             // 更新时间
     _t += 1.0f/400.0f;
@@ -809,12 +809,16 @@ void AC_PosControl::update_Rc(bool notland)
     _b_1c = Vector3f(1.0f, 0.0f, 0.0f);
     _b_2c = Vector3f(0.0f, 1.0f, 0.0f);
     _b_3c = Vector3f(0.0f, 0.0f, 1.0f);
+    //更新_Rc
+    _Rc.a.x = _b_1c.x; _Rc.a.y = _b_2c.x; _Rc.a.z = _b_3c.x; 
+    _Rc.b.x = _b_1c.y; _Rc.b.y = _b_2c.y; _Rc.b.z = _b_3c.y; 
+    _Rc.c.x = _b_1c.z; _Rc.c.y = _b_2c.z; _Rc.c.z = _b_3c.z; 
 
     }
 
     
     // 只有当 Rc 处于激活状态 且 飞控已解锁 时，才让姿态控制器使用 Rc
-   bool _Rc_active = is_active_Rc();
+   bool _Rc_active = is_active_Rc() && _event_guided_mode;
    _attitude_control.set_Rc(_Rc, _Rc_active); //发送给姿态控制//逻辑：当R_c更新后调用姿态控制
    
 }
@@ -1257,14 +1261,16 @@ void AC_PosControl::update_z_controller()
     
     //float fd;
     //fd = -_U_x.dot(_R_body_to_ned_meas.colz());                  //colz是拷贝取值，fd=U_x * Re3
+   
    static float fd_nor = 0.05f;                                         // fd_nor = fd/f_max，除以预设的无人机最大推力进行归一化
 
    static float _t = 0.0f;
-
+   if (_event_guided_mode){
+   
     // 更新时间
     _t += 1.0f / 400.0f;
 
-    // 在 n 秒内从 0 线性上升到 fd_target
+    // 在 n 秒内从 X.XX 线性上升到 fd_target
     float ramp_time = 2.0f;          // n 秒内达到目标，可调
     float fd_target = 0.3f;
 
@@ -1272,6 +1278,11 @@ void AC_PosControl::update_z_controller()
         fd_nor = fd_target * (_t / ramp_time);
     else
         fd_nor = fd_target;
+   }
+   else
+   {
+     fd_nor = 0.05f;
+   }
 
     float test_msg_1 = -pos_desired_z_set_update(_pos_desired.z,200.0f, 0.5f, 400.0f);
     //float test_msg_2 = _pdnn_pos.get_phi().x; 

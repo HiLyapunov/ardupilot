@@ -143,13 +143,14 @@ void _AutoTakeoff::run()
 
     // aircraft stays in landed state until rotor speed run up has finished
     if (motors->get_spool_state() != AP_Motors::SpoolState::THROTTLE_UNLIMITED) {
+        pos_control->set_event_guided_mode(true);   // 开启guided事件模式
         // motors have not completed spool up yet so relax navigation and position controllers
         pos_control->relax_velocity_controller_xy();
         pos_control->update_xy_controller();
         pos_control->relax_z_controller(0.0f);   // forces throttle output to decay to zero
         pos_control->update_z_controller();
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~添加Rc期望旋转矩阵的update循环调用~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        pos_control->update_Rc(!copter.ap.land_complete);
+        pos_control->update_Rc();
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~END~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         attitude_control->reset_yaw_target_and_rate();
         attitude_control->reset_rate_controller_I_terms();
@@ -210,7 +211,7 @@ void _AutoTakeoff::run()
     pos_control->update_z_controller();
 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~添加Rc期望旋转矩阵的update循环调用~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        pos_control->update_Rc(!copter.ap.land_complete);
+        pos_control->update_Rc();
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~END~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     // call attitude controller with auto yaw

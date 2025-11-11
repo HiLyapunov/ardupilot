@@ -138,6 +138,10 @@ public:
     float disturb(float frequency);
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~END~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
+    // 设置/获取 Guided 事件模式
+    void set_event_guided_mode(bool enabled) { _event_guided_mode = enabled; }
+    bool event_guided_mode() const { return _event_guided_mode; }
+
     /// input_accel_xy - calculate a jerk limited path from the current position, velocity and acceleration to an input acceleration.
     ///     The function takes the current position, velocity, and acceleration and calculates the required jerk limited adjustment to the acceleration for the next time dt.
     ///     The kinematic path is constrained by the maximum acceleration and jerk set using the function set_max_speed_accel_xy.
@@ -179,7 +183,7 @@ public:
     void update_xy_controller();
     
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~期望旋转矩阵Rc更新函数~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    void update_Rc(bool notland); //初始默认在地面
+    void update_Rc(); //初始默认在地面
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~END~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     ///
@@ -648,6 +652,8 @@ private:
 
     // singleton
     static AC_PosControl *_singleton;
+
+    bool _event_guided_mode = false;   // guided事件判断默认关闭
 };
  ///~~~~~~~~~~~~~~~~~~~~~~~~~~~DIY New DDS Topic output get_Wrench~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

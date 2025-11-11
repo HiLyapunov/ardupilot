@@ -706,7 +706,8 @@ void ModeGuided::takeoff_run()
 // pos_control_run - runs the guided position controller
 // called from guided_run
 void ModeGuided::pos_control_run()
-{
+{   
+    pos_control->set_event_guided_mode(true);   // 开启guided事件模式
     // if not armed set throttle to zero and exit immediately
     if (is_disarmed_or_landed()) {
         // do not spool down tradheli when on the ground with motor interlock enabled
@@ -748,8 +749,9 @@ void ModeGuided::pos_control_run()
     pos_control->update_z_controller();
 
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~添加Rc期望旋转矩阵的update循环调用~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-    pos_control->update_Rc(!copter.ap.land_complete);  //同时传出notland判断，供姿态控制在真正起飞的时候运行
+    
+    pos_control->update_Rc();
+    //pos_control->update_Rc(!copter.ap.land_complete);  //同时传出notland判断，供姿态控制在真正起飞的时候运行
     
     //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~END~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     
