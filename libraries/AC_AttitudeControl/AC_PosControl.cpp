@@ -785,7 +785,7 @@ void AC_PosControl::update_Rc()
             // 更新时间
     _t += 1.0f/400.0f;
 
-    if (_t > 5.0f) {   //n秒之后再进行时变
+    if (_t > 10.0f) {   //n秒之后再进行时变
         // ====== 期望滚转：绕 b1 轴 ±45° 正弦振荡 ======
     const float A = radians(10.0f);      // 振幅 45°
     const float f = 0.3f;                // 振荡频率 [Hz]，可根据 testbed 能力调整
