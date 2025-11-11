@@ -780,7 +780,7 @@ void AC_PosControl::update_Rc()
     //如果fd不是零向量，则归一化后作为b3轴
     static float _t = 0.0f;
 
-    if (_event_guided_mode){
+    if (_event_interlock){
 
             // 更新时间
     _t += 1.0f/400.0f;
@@ -832,7 +832,7 @@ void AC_PosControl::update_Rc()
 
     
     // 只有当 Rc 处于激活状态 且 飞控已解锁 时，才让姿态控制器使用 Rc
-   bool _Rc_active = is_active_Rc() && _event_guided_mode;
+   bool _Rc_active = is_active_Rc() && _event_interlock;
    _attitude_control.set_Rc(_Rc, _Rc_active); //发送给姿态控制//逻辑：当R_c更新后调用姿态控制
    
 }
@@ -1279,7 +1279,7 @@ void AC_PosControl::update_z_controller()
    static float fd_nor = 0.05f;                                         // fd_nor = fd/f_max，除以预设的无人机最大推力进行归一化
 
    static float _t = 0.0f;
-   if (_event_guided_mode){
+   if (_event_interlock){
    
     // 更新时间
     _t += 1.0f / 400.0f;

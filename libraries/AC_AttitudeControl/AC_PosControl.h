@@ -141,7 +141,9 @@ public:
     // 设置/获取 Guided 事件模式
     void set_event_guided_mode(bool enabled) { _event_guided_mode = enabled; }
     bool event_guided_mode() const { return _event_guided_mode; }
-
+    // 设置/获取 interlock 事件模式
+    void set_event_interlock(bool enabled) { _event_interlock = enabled; }
+    bool event_interlock() const { return _event_interlock; }
     /// input_accel_xy - calculate a jerk limited path from the current position, velocity and acceleration to an input acceleration.
     ///     The function takes the current position, velocity, and acceleration and calculates the required jerk limited adjustment to the acceleration for the next time dt.
     ///     The kinematic path is constrained by the maximum acceleration and jerk set using the function set_max_speed_accel_xy.
@@ -654,6 +656,7 @@ private:
     static AC_PosControl *_singleton;
 
     bool _event_guided_mode = false;   // guided事件判断默认关闭
+    bool _event_interlock = false;   // interlock事件判断默认关闭
 };
  ///~~~~~~~~~~~~~~~~~~~~~~~~~~~DIY New DDS Topic output get_Wrench~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

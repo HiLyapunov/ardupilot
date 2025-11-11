@@ -167,6 +167,7 @@ void Copter::motors_output()
     if (!motors->get_interlock() && interlock) {
         motors->set_interlock(true);
         LOGGER_WRITE_EVENT(LogEvent::MOTORS_INTERLOCK_ENABLED);
+        pos_control->set_event_interlock(true);   // 开启interlock事件模式
     } else if (motors->get_interlock() && !interlock) {
         motors->set_interlock(false);
         LOGGER_WRITE_EVENT(LogEvent::MOTORS_INTERLOCK_DISABLED);
