@@ -199,8 +199,9 @@ void _AutoTakeoff::run()
         Vector2f accel;
         pos_control->input_vel_accel_xy(vel, accel);
     }
+
+    pos_control->set_event_guided_mode(true);   // 开启guided事件模式
     pos_control->update_xy_controller();
-     
 
     // command the aircraft to the take off altitude
     float pos_z = complete_alt_cm + terr_offset;

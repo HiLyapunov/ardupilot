@@ -784,6 +784,8 @@ void AC_PosControl::update_Rc()
 
             // 更新时间
     _t += 1.0f/400.0f;
+
+    if (_t > 5.0f) {   //n秒之后再进行时变
         // ====== 期望滚转：绕 b1 轴 ±45° 正弦振荡 ======
     const float A = radians(10.0f);      // 振幅 45°
     const float f = 0.3f;                // 振荡频率 [Hz]，可根据 testbed 能力调整
@@ -803,8 +805,20 @@ void AC_PosControl::update_Rc()
         //更新_Rc
         _Rc.a.x = _b_1c.x; _Rc.a.y = _b_2c.x; _Rc.a.z = _b_3c.x; 
         _Rc.b.x = _b_1c.y; _Rc.b.y = _b_2c.y; _Rc.b.z = _b_3c.y; 
-        _Rc.c.x = _b_1c.z; _Rc.c.y = _b_2c.z; _Rc.c.z = _b_3c.z; 
-    } else {
+        _Rc.c.x = _b_1c.z; _Rc.c.y = _b_2c.z; _Rc.c.z = _b_3c.z; }
+
+    else {
+
+    _b_1c = Vector3f(1.0f, 0.0f, 0.0f);
+    _b_2c = Vector3f(0.0f, 1.0f, 0.0f);
+    _b_3c = Vector3f(0.0f, 0.0f, 1.0f);
+        //更新_Rc
+        _Rc.a.x = _b_1c.x; _Rc.a.y = _b_2c.x; _Rc.a.z = _b_3c.x; 
+        _Rc.b.x = _b_1c.y; _Rc.b.y = _b_2c.y; _Rc.b.z = _b_3c.y; 
+        _Rc.c.x = _b_1c.z; _Rc.c.y = _b_2c.z; _Rc.c.z = _b_3c.z;
+
+    }
+    } else {//如果不在guidedmode
 
     _b_1c = Vector3f(1.0f, 0.0f, 0.0f);
     _b_2c = Vector3f(0.0f, 1.0f, 0.0f);
