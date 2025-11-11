@@ -43,8 +43,6 @@ bool ModeGuided::init(bool ignore_checks)
     
     // clear pause state when entering guided mode
     _paused = false;
-    //新增传递event触发器到位置控制
-    pos_control->set_event_guided_mode(true);   // 开启guided事件模式
    //新增起飞逻辑，arming后起飞到目标高度cm
    do_user_takeoff_start(200.0f);
    
@@ -100,7 +98,8 @@ void ModeGuided::run()
         angle_control_run();
         break;
     }
-
+     //新增传递event触发器到位置控制
+    pos_control->set_event_guided_mode(true);   // 开启guided事件模式
     copter.set_auto_armed(true); //这里可以始终确保在guidedmode可以arming
  }
 
