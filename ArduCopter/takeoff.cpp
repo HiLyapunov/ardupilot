@@ -143,7 +143,7 @@ void _AutoTakeoff::run()
 
     // aircraft stays in landed state until rotor speed run up has finished
     if (motors->get_spool_state() != AP_Motors::SpoolState::THROTTLE_UNLIMITED) {
-        pos_control->set_event_guided_mode(true);   // 开启guided事件模式
+        //pos_control->set_event_guided_mode(true);   // 开启guided事件模式
         // motors have not completed spool up yet so relax navigation and position controllers
         pos_control->relax_velocity_controller_xy();
         pos_control->update_xy_controller();
@@ -200,7 +200,7 @@ void _AutoTakeoff::run()
         pos_control->input_vel_accel_xy(vel, accel);
     }
 
-    pos_control->set_event_guided_mode(true);   // 开启guided事件模式
+    //pos_control->set_event_guided_mode(true);   // 开启guided事件模式
     pos_control->update_xy_controller();
 
     // command the aircraft to the take off altitude

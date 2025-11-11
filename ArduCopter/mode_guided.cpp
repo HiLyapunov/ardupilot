@@ -40,12 +40,14 @@ bool ModeGuided::init(bool ignore_checks)
     guided_vel_target_cms.zero();
     guided_accel_target_cmss.zero();
     send_notification = false;
-
+    
     // clear pause state when entering guided mode
     _paused = false;
+    //新增传递event触发器到位置控制
+    pos_control->set_event_guided_mode(true);   // 开启guided事件模式
    //新增起飞逻辑，arming后起飞到目标高度cm
    do_user_takeoff_start(200.0f);
-
+   
 
     return true;
 }
