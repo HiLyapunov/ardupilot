@@ -325,9 +325,23 @@ void Copter::update_auto_armed()
 
     }else{
         // arm checks
-        
-        // for tradheli if motors are armed and throttle is above zero and the motor is started, auto_armed should be true
-        if(motors->armed() && ap.using_interlock) {
+         // === arm checks ===
+
+        // 危险！仅用于 testbed：
+        // 在 LOITER 模式中，如果已经：
+        //  - motors armed
+        //  - interlock 打开
+        //  - 电机已达到 THROTTLE_UNLIMITED（完全起转）
+        // 则直接认为 auto_armed = true，而不再依赖油门杆离开零位。
+        if (motors->armed() &&
+            motors->get_interlock() &&
+            flightmode->mode_number() == Mode::Number::LOITER) {
+
+            set_auto_armed(true);
+
+        // 原始逻辑：使用 interlock（如 heli）时，
+        // 需要非零油门 + spool 完成
+        } else if(motors->armed() && ap.using_interlock) { // for tradheli if motors are armed and throttle is above zero and the motor is started, auto_armed should be true
             if(!ap.throttle_zero && motors->get_spool_state() == AP_Motors::SpoolState::THROTTLE_UNLIMITED) {
                 set_auto_armed(true);
             }

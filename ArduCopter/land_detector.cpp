@@ -36,6 +36,16 @@ void Copter::update_land_and_crash_detectors()
 // called at MAIN_LOOP_RATE
 void Copter::update_land_detector()
 {
+    //危险！ —— 修改：Loiter + 已ARM 时，强制认为未落地（给 testbed / 固定架用） ——
+    if (motors->armed() &&
+        flightmode->mode_number() == Mode::Number::LOITER) {
+
+        set_land_complete(false);
+        set_land_complete_maybe(false);
+        land_detector_count = 0;
+        return;    // 不再执行后面的落地判定
+    }
+
     // land detector can not use the following sensors because they are unreliable during landing
     // barometer altitude :                 ground effect can cause errors larger than 4m
     // EKF vertical velocity or altitude :  poor barometer and large acceleration from ground impact
