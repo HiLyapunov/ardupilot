@@ -203,14 +203,6 @@ Vector3f AC_PDNN_SO3::update_all(const Matrix3f &R_c, const Matrix3f &R, const V
         _h_x_2 = expf(-L_x_2*L_x_2/(2*_b_x*_b_x));//x方向第2个隐藏层输出
         float L_x_3 = (_X_x-_c_x_3).length(); //存储欧式距离
         _h_x_3 = expf(-L_x_3*L_x_3/(2*_b_x*_b_x));//x方向第3个隐藏层输出
-        float L_x_4 = (_X_x-_c_x_4).length(); //存储欧式距离
-        _h_x_4 = expf(-L_x_4*L_x_4/(2*_b_x*_b_x));//x方向第4个隐藏层输出
-        float L_x_5 = (_X_x-_c_x_5).length(); //存储欧式距离
-        _h_x_5 = expf(-L_x_5*L_x_5/(2*_b_x*_b_x));//x方向第5个隐藏层输出
-        float L_x_6 = (_X_x-_c_x_6).length(); //存储欧式距离
-        _h_x_6 = expf(-L_x_6*L_x_6/(2*_b_x*_b_x));//x方向第6个隐藏层输出
-        float L_x_7 = (_X_x-_c_x_7).length(); //存储欧式距离
-        _h_x_7 = expf(-L_x_7*L_x_7/(2*_b_x*_b_x));//x方向第7个隐藏层输出
         
 
         float L_y_1 = (_X_y-_c_y_1).length(); //存储欧式距离
@@ -219,14 +211,6 @@ Vector3f AC_PDNN_SO3::update_all(const Matrix3f &R_c, const Matrix3f &R, const V
         _h_y_2 = expf(-L_y_2*L_y_2/(2*_b_y*_b_y));//y方向第2个隐藏层输出
         float L_y_3 = (_X_y-_c_y_3).length(); //存储欧式距离
         _h_y_3 = expf(-L_y_3*L_y_3/(2*_b_y*_b_y));//y方向第3个隐藏层输出
-        float L_y_4 = (_X_y-_c_y_4).length(); //存储欧式距离
-        _h_y_4 = expf(-L_y_4*L_y_4/(2*_b_y*_b_y));//y方向第4个隐藏层输出
-        float L_y_5 = (_X_y-_c_y_5).length(); //存储欧式距离
-        _h_y_5 = expf(-L_y_5*L_y_5/(2*_b_y*_b_y));//y方向第5个隐藏层输出
-        float L_y_6 = (_X_y-_c_y_6).length(); //存储欧式距离
-        _h_y_6 = expf(-L_y_6*L_y_6/(2*_b_y*_b_y));//y方向第6个隐藏层输出
-        float L_y_7 = (_X_y-_c_y_7).length(); //存储欧式距离
-        _h_y_7 = expf(-L_y_7*L_y_7/(2*_b_y*_b_y));//y方向第7个隐藏层输出
         
 
         float L_z_1 = (_X_z-_c_z_1).length(); //存储欧式距离
@@ -235,14 +219,6 @@ Vector3f AC_PDNN_SO3::update_all(const Matrix3f &R_c, const Matrix3f &R, const V
         _h_z_2 = expf(-L_z_2*L_z_2/(2*3.0f*3.0f));//z方向第2个隐藏层输出
         float L_z_3 = (_X_z-_c_z_3).length(); //存储欧式距离
         _h_z_3 = expf(-L_z_3*L_z_3/(2*3.0f*3.0f));//z方向第3个隐藏层输出
-        float L_z_4 = (_X_z-_c_z_4).length(); //存储欧式距离
-        _h_z_4 = expf(-L_z_4*L_z_4/(2*3.0f*3.0f));//z方向第4个隐藏层输出
-        float L_z_5 = (_X_z-_c_z_5).length(); //存储欧式距离
-        _h_z_5 = expf(-L_z_5*L_z_5/(2*_b_z*_b_z));//z方向第5个隐藏层输出
-        float L_z_6 = (_X_z-_c_z_6).length(); //存储欧式距离
-        _h_z_6 = expf(-L_z_6*L_z_6/(2*3.0f*3.0f));//z方向第6个隐藏层输出
-        float L_z_7 = (_X_z-_c_z_7).length(); //存储欧式距离
-        _h_z_7 = expf(-L_z_7*L_z_7/(2*_b_z*_b_z));//z方向第7个隐藏层输出
 
         //===================== 权重更新律（含死区 + 投影约束）=====================
 // —— 学习抑制与界约束参数（与 S-Function 保持一致）——
@@ -259,29 +235,25 @@ const float Wmax = 500.0f;     // 权重范数上限（球半径）
     float dW_nom_x1 = _gamma_x * z_x * _h_x_1;
     float dW_nom_x2 = _gamma_x * z_x * _h_x_2;
     float dW_nom_x3 = _gamma_x * z_x * _h_x_3;
-    float dW_nom_x4 = _gamma_x * z_x * _h_x_4;
-    float dW_nom_x5 = _gamma_x * z_x * _h_x_5;
-    float dW_nom_x6 = _gamma_x * z_x * _h_x_6;
-    float dW_nom_x7 = _gamma_x * z_x * _h_x_7;
 
     // 2) 死区：‖[e_R; e_Ω]‖ ≤ zeta → dW = 0
     const Vector2f x_R(_e_R.x, _e_Omega.x);
     const float xR_norm = x_R.length();
 
-    float dW_x1=0, dW_x2=0, dW_x3=0, dW_x4=0, dW_x5=0, dW_x6=0, dW_x7=0;
+    float dW_x1=0, dW_x2=0, dW_x3=0;
     if (xR_norm <= zeta) {
-        dW_x1 = dW_x2 = dW_x3 = dW_x4 = dW_x5 = dW_x6 = dW_x7 = 0.0f;
+        dW_x1 = dW_x2 = dW_x3 = 0.0f;
     } else {
         // 3) 投影：在界内或边界且不向外 ⇒ 允许名义律；否则正交投影
-        const float Wnorm_x = sqrtf(_W_x_1*_W_x_1 + _W_x_2*_W_x_2 + _W_x_3*_W_x_3 + _W_x_4*_W_x_4 + _W_x_5*_W_x_5 + _W_x_6*_W_x_6 + _W_x_7*_W_x_7);
-        const float radial_x = dW_nom_x1*_W_x_1 + dW_nom_x2*_W_x_2 + dW_nom_x3*_W_x_3 + dW_nom_x4*_W_x_4 + dW_nom_x5*_W_x_5 + dW_nom_x6*_W_x_6 + dW_nom_x7*_W_x_7;
+        const float Wnorm_x = sqrtf(_W_x_1*_W_x_1 + _W_x_2*_W_x_2 + _W_x_3*_W_x_3 );
+        const float radial_x = dW_nom_x1*_W_x_1 + dW_nom_x2*_W_x_2 + dW_nom_x3*_W_x_3;
 
         const bool W_in_x = (Wnorm_x < Wmax);
         const bool W_eq_x = (!(Wnorm_x < Wmax) && !(Wnorm_x > Wmax));  // 等价于 Wnorm_x == Wmax，规避浮点 ==
         const bool allow_nominal_x = W_in_x || (W_eq_x && (radial_x <= 0.0f));
 
         if (allow_nominal_x) {
-            dW_x1 = dW_nom_x1; dW_x2 = dW_nom_x2; dW_x3 = dW_nom_x3; dW_x4 = dW_nom_x4; dW_x5 = dW_nom_x5; dW_x6 = dW_nom_x6; dW_x7 = dW_nom_x7;
+            dW_x1 = dW_nom_x1; dW_x2 = dW_nom_x2; dW_x3 = dW_nom_x3;
         } else {
             // 严格投影：dW ← dW_nom - ((dW_nom^T W)/(W^T W)) W   （无 eps）
             const float denom = (Wnorm_x * Wnorm_x);         // 若要更稳健可改成 fmaxf(denom, 1e-12f)
@@ -289,10 +261,6 @@ const float Wmax = 500.0f;     // 权重范数上限（球半径）
             dW_x1 = dW_nom_x1 - alpha * _W_x_1;
             dW_x2 = dW_nom_x2 - alpha * _W_x_2;
             dW_x3 = dW_nom_x3 - alpha * _W_x_3;
-            dW_x4 = dW_nom_x4 - alpha * _W_x_4;
-            dW_x5 = dW_nom_x5 - alpha * _W_x_5;
-            dW_x6 = dW_nom_x6 - alpha * _W_x_6;
-            dW_x7 = dW_nom_x7 - alpha * _W_x_7;
         }
     }
 
@@ -301,10 +269,6 @@ const float Wmax = 500.0f;     // 权重范数上限（球半径）
         _W_x_1 += dW_x1 * dt;
         _W_x_2 += dW_x2 * dt;
         _W_x_3 += dW_x3 * dt;
-        _W_x_4 += dW_x4 * dt;
-        _W_x_5 += dW_x5 * dt;
-        _W_x_6 += dW_x6 * dt;
-        _W_x_7 += dW_x7 * dt;
     }
 }
 
@@ -316,37 +280,29 @@ const float Wmax = 500.0f;     // 权重范数上限（球半径）
     float dW_nom_y1 = _gamma_y * z_y * _h_y_1;
     float dW_nom_y2 = _gamma_y * z_y * _h_y_2;
     float dW_nom_y3 = _gamma_y * z_y * _h_y_3;
-    float dW_nom_y4 = _gamma_y * z_y * _h_y_4;
-    float dW_nom_y5 = _gamma_y * z_y * _h_y_5;
-    float dW_nom_y6 = _gamma_y * z_y * _h_y_6;
-    float dW_nom_y7 = _gamma_y * z_y * _h_y_7;
 
     const Vector2f y_R(_e_R.y, _e_Omega.y);
     const float yR_norm = y_R.length();
 
-    float dW_y1=0, dW_y2=0, dW_y3=0, dW_y4=0, dW_y5=0, dW_y6=0, dW_y7=0;
+    float dW_y1=0, dW_y2=0, dW_y3=0;
     if (yR_norm <= zeta) {
-        dW_y1 = dW_y2 = dW_y3 = dW_y4 = dW_y5 = dW_y6 = dW_y7 = 0.0f;
+        dW_y1 = dW_y2 = dW_y3 = 0.0f;
     } else {
-        const float Wnorm_y = sqrtf(_W_y_1*_W_y_1 + _W_y_2*_W_y_2 + _W_y_3*_W_y_3 + _W_y_4*_W_y_4 + _W_y_5*_W_y_5 + W_y_6*_W_y_6 + _W_y_7*_W_y_7);
-        const float radial_y = dW_nom_y1*_W_y_1 + dW_nom_y2*_W_y_2 + dW_nom_y3*_W_y_3 + dW_nom_y4*_W_y_4 + dW_nom_y5*_W_y_5 + dW_nom_y6*_W_y_6 + dW_nom_y7*_W_y_7;
+        const float Wnorm_y = sqrtf(_W_y_1*_W_y_1 + _W_y_2*_W_y_2 + _W_y_3*_W_y_3 );
+        const float radial_y = dW_nom_y1*_W_y_1 + dW_nom_y2*_W_y_2 + dW_nom_y3*_W_y_3;
 
         const bool W_in_y = (Wnorm_y < Wmax);
         const bool W_eq_y = (!(Wnorm_y < Wmax) && !(Wnorm_y > Wmax));
         const bool allow_nominal_y = W_in_y || (W_eq_y && (radial_y <= 0.0f));
 
         if (allow_nominal_y) {
-            dW_y1 = dW_nom_y1; dW_y2 = dW_nom_y2; dW_y3 = dW_nom_y3; dW_y4 = dW_nom_y4; dW_y5 = dW_nom_y5; dW_y6 = dW_nom_y6; dW_y7 = dW_nom_y7;
+            dW_y1 = dW_nom_y1; dW_y2 = dW_nom_y2; dW_y3 = dW_nom_y3;
         } else {
             const float denom = (Wnorm_y * Wnorm_y);
             const float alpha = radial_y / denom;
             dW_y1 = dW_nom_y1 - alpha * _W_y_1;
             dW_y2 = dW_nom_y2 - alpha * _W_y_2;
             dW_y3 = dW_nom_y3 - alpha * _W_y_3;
-            dW_y4 = dW_nom_y4 - alpha * _W_y_4;
-            dW_y5 = dW_nom_y5 - alpha * _W_y_5;
-            dW_y6 = dW_nom_y6 - alpha * _W_y_6;
-            dW_y7 = dW_nom_y7 - alpha * _W_y_7;
         }
     }
 
@@ -354,10 +310,6 @@ const float Wmax = 500.0f;     // 权重范数上限（球半径）
         _W_y_1 += dW_y1 * dt;
         _W_y_2 += dW_y2 * dt;
         _W_y_3 += dW_y3 * dt;
-        _W_y_4 += dW_y4 * dt;
-        _W_y_5 += dW_y5 * dt;
-        _W_y_6 += dW_y6 * dt;
-        _W_y_7 += dW_y7 * dt;
     }
 }
 
@@ -370,37 +322,29 @@ const float Wmax = 500.0f;     // 权重范数上限（球半径）
     float dW_nom_z1 = _gamma_z * z_z * _h_z_1;
     float dW_nom_z2 = _gamma_z * z_z * _h_z_2;
     float dW_nom_z3 = _gamma_z * z_z * _h_z_3;
-    float dW_nom_z4 = _gamma_z * z_z * _h_z_4;
-    float dW_nom_z5 = _gamma_z * z_z * _h_z_5;
-    float dW_nom_z6 = _gamma_z * z_z * _h_z_6;
-    float dW_nom_z7 = _gamma_z * z_z * _h_z_7;
 
     const Vector2f z_R(_e_R.z, _e_Omega.z);
     const float zR_norm = z_R.length();
 
-    float dW_z1=0, dW_z2=0, dW_z3=0, dW_z4=0, dW_z5=0, dW_z6=0, dW_z7=0;
+    float dW_z1=0, dW_z2=0, dW_z3=0, dW_z4=0, dW_z5=0;
     if (zR_norm <= zeta) {
-        dW_z1 = dW_z2 = dW_z3 = dW_z4 = dW_z5 = dW_z6 = dW_z7 = 0.0f;
+        dW_z1 = dW_z2 = dW_z3 = dW_z4 = dW_z5 = 0.0f;
     } else {
-        const float Wnorm_z = sqrtf(_W_z_1*_W_z_1 + _W_z_2*_W_z_2 + _W_z_3*_W_z_3 + _W_z_4*_W_z_4 + _W_z_5*_W_z_5 + _W_z_6*_W_z_6 + _W_z_7*_W_z_7);
-        const float radial_z = dW_nom_z1*_W_z_1 + dW_nom_z2*_W_z_2 + dW_nom_z3*_W_z_3 + dW_nom_z4*_W_z_4 + dW_nom_z5*_W_z_5 + dW_nom_z6*_W_z_6 + dW_nom_z7*_W_z_7;
+        const float Wnorm_z = sqrtf(_W_z_1*_W_z_1 + _W_z_2*_W_z_2 + _W_z_3*_W_z_3);
+        const float radial_z = dW_nom_z1*_W_z_1 + dW_nom_z2*_W_z_2 + dW_nom_z3*_W_z_3;
 
         const bool W_in_z = (Wnorm_z < Wmax);
         const bool W_eq_z = (!(Wnorm_z < Wmax) && !(Wnorm_z > Wmax));
         const bool allow_nominal_z = W_in_z || (W_eq_z && (radial_z <= 0.0f));
 
         if (allow_nominal_z) {
-            dW_z1 = dW_nom_z1; dW_z2 = dW_nom_z2; dW_z3 = dW_nom_z3; dW_z4 = dW_nom_z4; dW_z5 = dW_nom_z5; dW_z6 = dW_nom_z6; dW_z7 = dW_nom_z7;
+            dW_z1 = dW_nom_z1; dW_z2 = dW_nom_z2; dW_z3 = dW_nom_z3;
         } else {
             const float denom = (Wnorm_z * Wnorm_z);
             const float alpha = radial_z / denom;
             dW_z1 = dW_nom_z1 - alpha * _W_z_1;
             dW_z2 = dW_nom_z2 - alpha * _W_z_2;
             dW_z3 = dW_nom_z3 - alpha * _W_z_3;
-            dW_z4 = dW_nom_z4 - alpha * _W_z_4;
-            dW_z5 = dW_nom_z5 - alpha * _W_z_5;
-            dW_z6 = dW_nom_z6 - alpha * _W_z_6;
-            dW_z7 = dW_nom_z7 - alpha * _W_z_7;
         }
     }
 
@@ -408,10 +352,6 @@ const float Wmax = 500.0f;     // 权重范数上限（球半径）
         _W_z_1 += dW_z1 * dt;
         _W_z_2 += dW_z2 * dt;
         _W_z_3 += dW_z3 * dt;
-        _W_z_4 += dW_z4 * dt;
-        _W_z_5 += dW_z5 * dt;
-        _W_z_6 += dW_z6 * dt;
-        _W_z_7 += dW_z7 * dt;
     }
 }
 
@@ -419,16 +359,14 @@ const float Wmax = 500.0f;     // 权重范数上限（球半径）
 
 
          //计算神经网络输出_phi = W' * h
-        _phi_x = _W_x_1 * _h_x_1 + _W_x_2 * _h_x_2 + _W_x_3 * _h_x_3 + _W_x_4 * _h_x_4 + _W_x_5 * _h_x_5 + _W_x_6 * _h_x_6 + _W_x_7 * _h_x_7; //x方向神经网络输出
-        _phi_y = _W_y_1 * _h_y_1 + _W_y_2 * _h_y_2 + _W_y_3 * _h_y_3 + _W_y_4 * _h_y_4 + _W_y_5 * _h_y_5 + _W_y_6 * _h_y_6 + _W_y_7 * _h_y_7; //y方向神经网络输出
-        _phi_z = _W_z_1 * _h_z_1 + _W_z_2 * _h_z_2 + _W_z_3 * _h_z_3 + _W_z_4 * _h_z_4 + _W_z_5 * _h_z_5 + _W_z_6 * _h_z_6 + _W_z_7 * _h_z_7; //z方向神经网络输出
+        _phi_x = _W_x_1 * _h_x_1 + _W_x_2 * _h_x_2 + _W_x_3 * _h_x_3; //x方向神经网络输出
+        _phi_y = _W_y_1 * _h_y_1 + _W_y_2 * _h_y_2 + _W_y_3 * _h_y_3; //y方向神经网络输出
+        _phi_z = _W_z_1 * _h_z_1 + _W_z_2 * _h_z_2 + _W_z_3 * _h_z_3; //z方向神经网络输出
         //(void)_phi_x;
         //(void)_phi_y;
         //(void)_phi_z;//暂时标记为未使用，避免报错
-        
-        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~END~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-        
         }
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~END~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~END~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
