@@ -779,18 +779,19 @@ void AC_PosControl::update_Rc()
 //接下来计算b3c=fd/||fd||
     //如果fd不是零向量，则归一化后作为b3轴
     static float _t = 0.0f;
-
+    const float t_start = 5.0f;
     if (_event_interlock){
 
             // 更新时间
     _t += 1.0f/400.0f;
-
-    if (_t > 30.0f) {   //n秒之后再进行时变
+   
+    if (_t > t_start) {   //n秒之后再进行时变
         // ====== 期望滚转：绕 b1 轴 ±45° 正弦振荡 ======
     const float A = radians(10.0f);      // 振幅 45°
     const float f = 0.3f;                // 振荡频率 [Hz]，可根据 testbed 能力调整
     const float omega = 2.0f * M_PI * f; // 角频率
-    const float phi = A * sinf(omega * _t);
+    const float tau = _t - t_start;
+    const float phi  = A * sinf(omega * tau);
     const float cphi = cosf(phi);
     const float sphi = sinf(phi);
 
