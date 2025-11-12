@@ -56,23 +56,29 @@ Vector3f AC_PDNN_SO3::update_all(const Matrix3f &R_c, const Matrix3f &R, const V
  
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Neural Networks变量声明和定义~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 //设置默认RBF网络中心矩阵 Setting the centers of RBF c=Matrix5*2
-    float _c_1_1 = -1.0f; float _c_1_2 = 0.0f; float _c_1_3 = 1.0f;  
-    float _c_2_1 = -10.0f; float _c_2_2 = 0.0f; float _c_2_3 = 10.0f; 
+    float _c_1_1 = -1.0f; float _c_1_2 = -0.5f; float _c_1_3 = 0.0f; float _c_1_4 = 0.5f; float _c_1_5 = 1.0f;
+    float _c_2_1 = -10.0f; float _c_2_2 = -5.0f; float _c_2_3 = 0.0f; float _c_2_4 = 5.0f; float _c_2_5 = 10.0f; 
     //定义 特定方向 第j个 隐藏层对应的RBF网络中心（可以理解为上面RBF网络中心矩阵的第j列）
-    Vector2f _c_x_1, _c_x_2, _c_x_3; //x方向
+    Vector2f _c_x_1, _c_x_2, _c_x_3, _c_x_4, _c_x_5; //x方向
     _c_x_1.x = _c_1_1; _c_x_1.y = _c_2_1;//第1个隐藏层中心2*1向量
     _c_x_2.x = _c_1_2; _c_x_2.y = _c_2_2;//第2个隐藏层中心2*1向量
     _c_x_3.x = _c_1_3; _c_x_3.y = _c_2_3;//第3个隐藏层中心2*1向量
+    _c_x_4.x = _c_1_4; _c_x_4.y = _c_2_4;//第4个隐藏层中心2*1向量
+    _c_x_5.x = _c_1_5; _c_x_5.y = _c_2_5;//第5个隐藏层中心2*1向量
 
-    Vector2f _c_y_1, _c_y_2, _c_y_3; //y方向
+    Vector2f _c_y_1, _c_y_2, _c_y_3, _c_y_4, _c_y_5; //y方向
     _c_y_1.x = _c_1_1; _c_y_1.y = _c_2_1;//第1个隐藏层中心2*1向量
     _c_y_2.x = _c_1_2; _c_y_2.y = _c_2_2;//第2个隐藏层中心2*1向量
     _c_y_3.x = _c_1_3; _c_y_3.y = _c_2_3;//第3个隐藏层中心2*1向量
+    _c_y_4.x = _c_1_4; _c_y_4.y = _c_2_4;//第4个隐藏层中心2*1向量
+    _c_y_5.x = _c_1_5; _c_y_5.y = _c_2_5;//第5个隐藏层中心2*1向量
 
-    Vector2f _c_z_1, _c_z_2, _c_z_3; //z方向
+    Vector2f _c_z_1, _c_z_2, _c_z_3, _c_z_4, _c_z_5; //z方向
     _c_z_1.x = _c_1_1; _c_z_1.y = -6.0f;//第1个隐藏层中心2*1向量
-    _c_z_2.x = _c_1_2; _c_z_2.y = 0.0f;//第2个隐藏层中心2*1向量
-    _c_z_3.x = _c_1_3; _c_z_3.y = 6.0f;//第3个隐藏层中心2*1向量
+    _c_z_2.x = _c_1_2; _c_z_2.y = -3.0f;//第2个隐藏层中心2*1向量
+    _c_z_3.x = _c_1_3; _c_z_3.y = 0.0f;//第3个隐藏层中心2*1向量
+    _c_z_4.x = _c_1_4; _c_z_4.y = 3.0f;//第4个隐藏层中心2*1向量
+    _c_z_5.x = _c_1_5; _c_z_5.y = 6.0f;//第5个隐藏层中心2*1向量
 
     //设置RBF网络的宽度 Setting the width of the RBF network 注意！！：宽度越大约平滑，太小会发散
     float _b_x = 2.0f;   
@@ -109,19 +115,19 @@ Vector3f AC_PDNN_SO3::update_all(const Matrix3f &R_c, const Matrix3f &R, const V
         _X_z.x = _e_R.z; _X_z.y = _e_Omega.z; //x方向2*1
 
         //初始化隐藏层输出
-        _h_x_1 = _h_x_2 = _h_x_3  = 0.0f; //x方向
-        _h_y_1 = _h_y_2 = _h_y_3  = 0.0f; //y方向
-        _h_z_1 = _h_z_2 = _h_z_3  = 0.0f; //z方向
+        _h_x_1 = _h_x_2 = _h_x_3 = _h_x_4 = _h_x_5 = 0.0f; //x方向
+        _h_y_1 = _h_y_2 = _h_y_3 = _h_y_4 = _h_y_5 = 0.0f; //y方向
+        _h_z_1 = _h_z_2 = _h_z_3 = _h_z_4 = _h_z_5 = 0.0f; //z方向
 
         //初始化权重更新律
-        _dot_W_x_1 = _dot_W_x_2 = _dot_W_x_3  = 0.0f;  //x方向
-        _dot_W_y_1 = _dot_W_y_2 = _dot_W_y_3  = 0.0f;  //y方向
-        _dot_W_z_1 = _dot_W_z_2 = _dot_W_z_3  = 0.0f;  //z方向
+        _dot_W_x_1 = _dot_W_x_2 = _dot_W_x_3 = _dot_W_x_4 = _dot_W_x_5 = 0.0f;  //x方向
+        _dot_W_y_1 = _dot_W_y_2 = _dot_W_y_3 = _dot_W_y_4 = _dot_W_y_5 = 0.0f;  //y方向
+        _dot_W_z_1 = _dot_W_z_2 = _dot_W_z_3 = _dot_W_z_4 = _dot_W_z_5 = 0.0f;  //z方向
  
         //初始化权重
-        _W_x_1 = _W_x_2 = _W_x_3 = 0.0f; //x方向
-        _W_y_1 = _W_y_2 = _W_y_3 = 0.0f; //y方向
-        _W_z_1 = _W_z_2 = _W_z_3 = 0.0f; //z方向
+        _W_x_1 = _W_x_2 = _W_x_3 = _W_x_4 = _W_x_5 = 0.0f; //x方向
+        _W_y_1 = _W_y_2 = _W_y_3 = _W_y_4 = _W_y_5 = 0.0f; //y方向
+        _W_z_1 = _W_z_2 = _W_z_3 = _W_z_4 = _W_z_5 = 0.0f; //z方向
 
         //初始化神经网络输出_phi
         _phi_x = _phi_y = _phi_z = 0.0f;
@@ -226,7 +232,7 @@ const float Wmax = 500.0f;     // 权重范数上限（球半径）
 //——— X 轴 ———
 {
     // 1) 名义律 dW_nom = gamma * (e_Ω + c_R e_R) * h
-    const float _gamma_x = 120.0f;
+    const float _gamma_x = 80.0f;
     const float z_x = _e_Omega.x + c_R * _e_R.x;
 
     float dW_nom_x1 = _gamma_x * z_x * _h_x_1;
@@ -277,7 +283,7 @@ const float Wmax = 500.0f;     // 权重范数上限（球半径）
 
 //——— Y 轴 ———
 {
-    const float _gamma_y = 120.0f;
+    const float _gamma_y = 80.0f;
     const float z_y = _e_Omega.y + c_R * _e_R.y;
 
     float dW_nom_y1 = _gamma_y * z_y * _h_y_1;
