@@ -153,6 +153,7 @@ when the RADIX 2 HD is in bootloader mode.
 ### way to build fast on our env
 
 ```bash
+cd ~/kou-project/kou-ardupilot-code/ardupilot
 ./waf configure --board RADIX2HD --enable-dds
 ./waf copter
 cd build/RADIX2HD/bin
