@@ -1285,7 +1285,7 @@ void AC_PosControl::update_z_controller()
     _t += 1.0f / 400.0f;
 
     // 在 n 秒内从 X.XX 线性上升到 fd_target
-    float ramp_time = 1.0f;          // n 秒内达到目标，可调
+    float ramp_time = 0.1f;          // n 秒内达到目标，可调
     float fd_target = 0.3f;
 
     if (_t < ramp_time)
