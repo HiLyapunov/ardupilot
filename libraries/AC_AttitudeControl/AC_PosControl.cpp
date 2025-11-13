@@ -787,8 +787,8 @@ void AC_PosControl::update_Rc()
    
     if (_t > t_start) {   //n秒之后再进行时变
         // ====== 期望滚转：绕 b1 轴 ±45° 正弦振荡 ======
-    const float A = radians(10.0f);      // 振幅 45°
-    const float f = 0.3f;                // 振荡频率 [Hz]，可根据 testbed 能力调整
+    const float A = radians(20.0f);      // 振幅 45°
+    const float f = 0.2f;                // 振荡频率 [Hz]，可根据 testbed 能力调整
     const float omega = 2.0f * M_PI * f; // 角频率
     const float tau = _t - t_start;
     const float phi  = A * sinf(omega * tau);
