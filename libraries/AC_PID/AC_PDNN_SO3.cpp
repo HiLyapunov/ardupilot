@@ -210,13 +210,13 @@ Vector3f AC_PDNN_SO3::update_all(const Matrix3f &R_c, const Matrix3f &R, const V
         //===================== 权重更新律（含死区 + 投影约束）=====================
 // —— 学习抑制与界约束参数（与 S-Function 保持一致）——
 const float c_R  = 0.6f;       // 复合误差系数
-const float zeta = 0.005f;    // 死区阈值：‖[e_R; e_Ω]‖ <= zeta → 停止学习
+const float zeta = 0.01f;    // 死区阈值：‖[e_R; e_Ω]‖ <= zeta → 停止学习
 const float Wmax = 500.0f;     // 权重范数上限（球半径）
 
 //——— X 轴 ———
 {
     // 1) 名义律 dW_nom = gamma * (e_Ω + c_R e_R) * h
-    const float _gamma_x = 80.0f;
+    const float _gamma_x = 35.0f;
     const float z_x = _e_Omega.x + c_R * _e_R.x;
 
     float dW_nom_x1 = _gamma_x * z_x * _h_x_1;
@@ -261,7 +261,7 @@ const float Wmax = 500.0f;     // 权重范数上限（球半径）
 
 //——— Y 轴 ———
 {
-    const float _gamma_y = 80.0f;
+    const float _gamma_y = 35.0f;
     const float z_y = _e_Omega.y + c_R * _e_R.y;
 
     float dW_nom_y1 = _gamma_y * z_y * _h_y_1;
@@ -303,7 +303,7 @@ const float Wmax = 500.0f;     // 权重范数上限（球半径）
 
 //——— Z 轴 ———
 {
-    const float _gamma_z = 50.0f;
+    const float _gamma_z = 10.0f;
     const float z_z = _e_Omega.z + c_R * _e_R.z;
 
     float dW_nom_z1 = _gamma_z * z_z * _h_z_1;
