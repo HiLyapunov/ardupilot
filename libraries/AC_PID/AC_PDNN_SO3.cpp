@@ -127,7 +127,7 @@ Vector3f AC_PDNN_SO3::update_all(const Matrix3f &R_c, const Matrix3f &R, const V
 
         //update I term 更新积分项
         //void AC_PDNN_3D::update_i(float dt, float _ki, float _c1, float _kimax, bool limit)
-        update_i(dt, 2.0f, 10.0f, 20.0f, true); //尽量小，姿态控制要求实时性
+        update_i(dt, 3.0f, 10.0f, 20.0f, true); //尽量小，姿态控制要求实时性
 
        
 
