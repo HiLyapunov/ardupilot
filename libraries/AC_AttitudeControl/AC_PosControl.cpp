@@ -779,7 +779,7 @@ void AC_PosControl::update_Rc()
 //接下来计算b3c=fd/||fd||
     //如果fd不是零向量，则归一化后作为b3轴
     static float _t = 0.0f;
-    const float t_start = 5.0f;
+    const float t_start = 10.0f;
     if (_event_interlock){
 
             // 更新时间
@@ -1287,7 +1287,7 @@ void AC_PosControl::update_z_controller()
 
     // 在 n 秒内从 X.XX 线性上升到 fd_target
     float ramp_time = 0.1f;          // n 秒内达到目标，可调
-    float fd_target = 0.3f;
+    float fd_target = 0.25f;
 
     if (_t < ramp_time)
         fd_nor = fd_target * (_t / ramp_time);
