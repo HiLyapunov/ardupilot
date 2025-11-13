@@ -253,7 +253,7 @@ const float Wmax = 500.0f;     // 权重范数上限（球半径）
 //——— X 轴 ———
 {
     // 1) 名义律 dW_nom = gamma * (e_Ω + c_R e_R) * h
-    const float _gamma_x = 35.0f;
+    const float _gamma_x = 50.0f;
     const float z_x = _e_Omega.x + c_R * _e_R.x;
 
     float dW_nom_x1 = _gamma_x * z_x * _h_x_1;
@@ -310,7 +310,7 @@ const float Wmax = 500.0f;     // 权重范数上限（球半径）
 
 //——— Y 轴 ———
 {
-    const float _gamma_y = 35.0f;
+    const float _gamma_y = 50.0f;
     const float z_y = _e_Omega.y + c_R * _e_R.y;
 
     float dW_nom_y1 = _gamma_y * z_y * _h_y_1;
