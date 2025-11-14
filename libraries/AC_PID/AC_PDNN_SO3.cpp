@@ -283,7 +283,7 @@ const float Wmax = 500.0f;     // 权重范数上限（球半径）
 
 //——— Y 轴 ———
 {
-    const float _gamma_y = 10.0f;
+    const float _gamma_y = 20.0f;
     const float z_y = _e_Omega.y + c_R * _e_R.y;
 
     float dW_nom_y1 = _gamma_y * z_y * _h_y_1;
@@ -331,7 +331,7 @@ const float Wmax = 500.0f;     // 权重范数上限（球半径）
 
 //——— Z 轴 ———
 {
-    const float _gamma_z = 10.0f;
+    const float _gamma_z = 20.0f;
     const float z_z = _e_Omega.z + c_R * _e_R.z;
 
     float dW_nom_z1 = _gamma_z * z_z * _h_z_1;
