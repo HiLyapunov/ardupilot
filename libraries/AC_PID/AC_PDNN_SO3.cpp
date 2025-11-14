@@ -313,9 +313,9 @@ const float Wmax = 500.0f;     // 权重范数上限（球半径）
     const Vector2f z_R(_e_R.z, _e_Omega.z);
     const float zR_norm = z_R.length();
 
-    float dW_z1=0, dW_z2=0, dW_z3=0, dW_z4=0, dW_z5=0;
+    float dW_z1=0, dW_z2=0, dW_z3=0;
     if (zR_norm <= zeta) {
-        dW_z1 = dW_z2 = dW_z3 = dW_z4 = dW_z5 = 0.0f;
+        dW_z1 = dW_z2 = dW_z3 = 0.0f;
     } else {
         const float Wnorm_z = sqrtf(_W_z_1*_W_z_1 + _W_z_2*_W_z_2 + _W_z_3*_W_z_3);
         const float radial_z = dW_nom_z1*_W_z_1 + dW_nom_z2*_W_z_2 + dW_nom_z3*_W_z_3;
