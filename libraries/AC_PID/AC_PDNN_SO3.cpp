@@ -81,8 +81,8 @@ Vector3f AC_PDNN_SO3::update_all(const Matrix3f &R_c, const Matrix3f &R, const V
     _c_z_5.x = _c_1_5; _c_z_5.y = 6.0f;//第5个隐藏层中心2*1向量
 
     //设置RBF网络的宽度 Setting the width of the RBF network 注意！！：宽度越大约平滑，太小会发散
-    float _b_x = 0.50f;   
-    float _b_y = 0.50f;  
+    float _b_x = 2.0f;   
+    float _b_y = 2.0f;  
     float _b_z = 3.0f;
     
     // reset input filter to value received //无人机重启pdnn姿态控制时的初始化
@@ -419,9 +419,9 @@ const float Wmax = 500.0f;     // 权重范数上限（球半径）
     //(void)_geomrtry_output;
    if (_Rc_active) {
     //计算总输出，每个方向上乘以惯性张量
-    _pdnn_output.x = 0.01f * (-_e_R.x * 100.0f - _e_Omega.x * 40.0f - 0.0f * _integrator.x - _geomrtry_output.x - 1.0f *_phi_x + 0.0f*Aug.x); 
-    _pdnn_output.y = 0.01f * (-_e_R.y * 100.0f - _e_Omega.y * 40.0f - 0.0f *_integrator.y - _geomrtry_output.y- 1.0f * _phi_y + 0.0f*Aug.y);
-    _pdnn_output.z = 0.02f * (-_e_R.z * 100.0f - _e_Omega.z * 40.0f - 0.0f *_integrator.z - _geomrtry_output.z - 1.0f *_phi_z + 0.0f*Aug.z); //偏航误差e_R.z很容易就趋近于0，会导致无法满足持续激励假设
+    _pdnn_output.x = 0.01f * (-_e_R.x * 100.0f - _e_Omega.x * 30.0f - 0.0f * _integrator.x - _geomrtry_output.x - 1.0f *_phi_x + 0.0f*Aug.x); 
+    _pdnn_output.y = 0.01f * (-_e_R.y * 100.0f - _e_Omega.y * 30.0f - 0.0f *_integrator.y - _geomrtry_output.y- 1.0f * _phi_y + 0.0f*Aug.y);
+    _pdnn_output.z = 0.02f * (-_e_R.z * 100.0f - _e_Omega.z * 30.0f - 0.0f *_integrator.z - _geomrtry_output.z - 1.0f *_phi_z + 0.0f*Aug.z); //偏航误差e_R.z很容易就趋近于0，会导致无法满足持续激励假设
     
     //_pdnn_output.x = 0.01f * (-_e_R.x * 100.0f - _e_Omega.x * 40.0f - 0.0f * _integrator.x - _geomrtry_output.x - 0.0f *_phi_x + 0.0f*Aug.x); 
     //_pdnn_output.y = 0.01f * (-_e_R.y * 100.0f - _e_Omega.y * 40.0f - 0.0f *_integrator.y - _geomrtry_output.y- 0.0f * _phi_y + 0.0f*Aug.y);
