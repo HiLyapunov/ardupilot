@@ -81,8 +81,8 @@ Vector3f AC_PDNN_SO3::update_all(const Matrix3f &R_c, const Matrix3f &R, const V
     _c_z_5.x = _c_1_5; _c_z_5.y = 6.0f;//第5个隐藏层中心2*1向量
 
     //设置RBF网络的宽度 Setting the width of the RBF network 注意！！：宽度越大约平滑，太小会发散
-    float _b_x = 4.0f;   
-    float _b_y = 4.0f;  
+    float _b_x = 1.0f;   
+    float _b_y = 1.0f;  
     float _b_z = 3.0f;
     
     // reset input filter to value received //无人机重启pdnn姿态控制时的初始化
