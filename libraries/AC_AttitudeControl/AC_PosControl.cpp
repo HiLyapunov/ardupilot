@@ -1277,26 +1277,26 @@ void AC_PosControl::update_z_controller()
     //float fd;
     //fd = -_U_x.dot(_R_body_to_ned_meas.colz());                  //colz是拷贝取值，fd=U_x * Re3
    
-   static float fd_nor = 0.3f;                                         // fd_nor = fd/f_max，除以预设的无人机最大推力进行归一化
+   //static float fd_nor = 0.3f;                                         // fd_nor = fd/f_max，除以预设的无人机最大推力进行归一化
 
-   static float _t = 0.0f;
+   //static float _t = 0.0f;
    if (_event_interlock){
    
     // 更新时间
-    _t += 1.0f / 400.0f;
+    //_t += 1.0f / 400.0f;
 
     // 在 n 秒内从 X.XX 线性上升到 fd_target
-    float ramp_time = 0.1f;          // n 秒内达到目标，可调
-    float fd_target = 0.3f;
+    //float ramp_time = 0.1f;          // n 秒内达到目标，可调
+    //float fd_target = 0.3f;
 
-    if (_t < ramp_time)
-        fd_nor = fd_target * (_t / ramp_time);
-    else
-        fd_nor = fd_target;
-   }
-   else
-   {
-     fd_nor = 0.05f;
+    //if (_t < ramp_time)
+    //    fd_nor = fd_target * (_t / ramp_time);
+    //else
+    //    fd_nor = fd_target;
+   //}
+   //else
+   //{
+     fd_nor = 0.30f;
    }
 
     float test_msg_1 = -pos_desired_z_set_update(_pos_desired.z,200.0f, 0.5f, 400.0f);
