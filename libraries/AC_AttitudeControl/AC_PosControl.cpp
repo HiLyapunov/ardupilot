@@ -1296,7 +1296,7 @@ void AC_PosControl::update_z_controller()
    //}
    //else
    //{
-     fd_nor = 0.30f;
+    float fd_nor = 0.30f;
    }
 
     float test_msg_1 = -pos_desired_z_set_update(_pos_desired.z,200.0f, 0.5f, 400.0f);
