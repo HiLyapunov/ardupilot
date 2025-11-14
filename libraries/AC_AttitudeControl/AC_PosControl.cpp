@@ -1277,7 +1277,7 @@ void AC_PosControl::update_z_controller()
     //float fd;
     //fd = -_U_x.dot(_R_body_to_ned_meas.colz());                  //colz是拷贝取值，fd=U_x * Re3
    
-   static float fd_nor = 0.05f;                                         // fd_nor = fd/f_max，除以预设的无人机最大推力进行归一化
+   static float fd_nor = 0.00f;                                         // fd_nor = fd/f_max，除以预设的无人机最大推力进行归一化
 
    static float _t = 0.0f;
    if (_event_interlock){
