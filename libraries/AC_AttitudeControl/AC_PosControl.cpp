@@ -1,1894 +1,535 @@
-#include <AP_HAL/AP_HAL.h>
-#include "AC_PosControl.h"
+/// @file	AC_PDNN_SO3.cpp
+/// @brief	Generic PDNN algorithm
+
 #include <AP_Math/AP_Math.h>
-#include <AP_Logger/AP_Logger.h>
-#include <AP_Motors/AP_Motors.h>    // motors library
-#include <AP_Vehicle/AP_Vehicle_Type.h>
-#include <AP_Scheduler/AP_Scheduler.h>
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~添加新依赖以支持调用测量的四元数~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-#include <AP_AHRS/AP_AHRS_View.h>
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~END~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+#include "AC_PDNN_SO3.h"
 
-extern const AP_HAL::HAL& hal;
 
-#if APM_BUILD_TYPE(APM_BUILD_ArduPlane)
- // default gains for Plane
- # define POSCONTROL_POS_Z_P                    1.0f    // vertical position controller P gain default
- # define POSCONTROL_VEL_Z_P                    5.0f    // vertical velocity controller P gain default
- # define POSCONTROL_VEL_Z_IMAX                 1000.0f // vertical velocity controller IMAX gain default
- # define POSCONTROL_VEL_Z_FILT_HZ              5.0f    // vertical velocity controller input filter
- # define POSCONTROL_VEL_Z_FILT_D_HZ            5.0f    // vertical velocity controller input filter for D
- # define POSCONTROL_ACC_Z_P                    0.3f    // vertical acceleration controller P gain default
- # define POSCONTROL_ACC_Z_I                    1.0f    // vertical acceleration controller I gain default
- # define POSCONTROL_ACC_Z_D                    0.0f    // vertical acceleration controller D gain default
- # define POSCONTROL_ACC_Z_IMAX                 800     // vertical acceleration controller IMAX gain default
- # define POSCONTROL_ACC_Z_FILT_HZ              10.0f   // vertical acceleration controller input filter default
- # define POSCONTROL_ACC_Z_DT                   0.02f   // vertical acceleration controller dt default
- # define POSCONTROL_POS_XY_P                   0.5f    // horizontal position controller P gain default
- # define POSCONTROL_VEL_XY_P                   0.7f    // horizontal velocity controller P gain default
- # define POSCONTROL_VEL_XY_I                   0.35f    // horizontal velocity controller I gain default
- # define POSCONTROL_VEL_XY_D                   0.17f   // horizontal velocity controller D gain default
- # define POSCONTROL_VEL_XY_IMAX                1000.0f // horizontal velocity controller IMAX gain default
- # define POSCONTROL_VEL_XY_FILT_HZ             5.0f    // horizontal velocity controller input filter
- # define POSCONTROL_VEL_XY_FILT_D_HZ           5.0f    // horizontal velocity controller input filter for D
-#elif APM_BUILD_TYPE(APM_BUILD_ArduSub)
- // default gains for Sub
- # define POSCONTROL_POS_Z_P                    3.0f    // vertical position controller P gain default
- # define POSCONTROL_VEL_Z_P                    8.0f    // vertical velocity controller P gain default
- # define POSCONTROL_VEL_Z_IMAX                 1000.0f // vertical velocity controller IMAX gain default
- # define POSCONTROL_VEL_Z_FILT_HZ              5.0f    // vertical velocity controller input filter
- # define POSCONTROL_VEL_Z_FILT_D_HZ            5.0f    // vertical velocity controller input filter for D
- # define POSCONTROL_ACC_Z_P                    0.5f    // vertical acceleration controller P gain default
- # define POSCONTROL_ACC_Z_I                    0.1f    // vertical acceleration controller I gain default
- # define POSCONTROL_ACC_Z_D                    0.0f    // vertical acceleration controller D gain default
- # define POSCONTROL_ACC_Z_IMAX                 100     // vertical acceleration controller IMAX gain default
- # define POSCONTROL_ACC_Z_FILT_HZ              20.0f   // vertical acceleration controller input filter default
- # define POSCONTROL_ACC_Z_DT                   0.0025f // vertical acceleration controller dt default
- # define POSCONTROL_POS_XY_P                   1.0f    // horizontal position controller P gain default
- # define POSCONTROL_VEL_XY_P                   1.0f    // horizontal velocity controller P gain default
- # define POSCONTROL_VEL_XY_I                   0.5f    // horizontal velocity controller I gain default
- # define POSCONTROL_VEL_XY_D                   0.0f    // horizontal velocity controller D gain default
- # define POSCONTROL_VEL_XY_IMAX                1000.0f // horizontal velocity controller IMAX gain default
- # define POSCONTROL_VEL_XY_FILT_HZ             5.0f    // horizontal velocity controller input filter
- # define POSCONTROL_VEL_XY_FILT_D_HZ           5.0f    // horizontal velocity controller input filter for D
-#else
- // default gains for Copter / TradHeli
- # define POSCONTROL_POS_Z_P                    1.0f    // vertical position controller P gain default
- # define POSCONTROL_VEL_Z_P                    5.0f    // vertical velocity controller P gain default
- # define POSCONTROL_VEL_Z_IMAX                 1000.0f // vertical velocity controller IMAX gain default
- # define POSCONTROL_VEL_Z_FILT_HZ              5.0f    // vertical velocity controller input filter
- # define POSCONTROL_VEL_Z_FILT_D_HZ            5.0f    // vertical velocity controller input filter for D
- # define POSCONTROL_ACC_Z_P                    0.5f    // vertical acceleration controller P gain default
- # define POSCONTROL_ACC_Z_I                    1.0f    // vertical acceleration controller I gain default
- # define POSCONTROL_ACC_Z_D                    0.0f    // vertical acceleration controller D gain default
- # define POSCONTROL_ACC_Z_IMAX                 800     // vertical acceleration controller IMAX gain default
- # define POSCONTROL_ACC_Z_FILT_HZ              20.0f   // vertical acceleration controller input filter default
- # define POSCONTROL_ACC_Z_DT                   0.0025f // vertical acceleration controller dt default
- # define POSCONTROL_POS_XY_P                   1.0f    // horizontal position controller P gain default
- # define POSCONTROL_VEL_XY_P                   2.0f    // horizontal velocity controller P gain default
- # define POSCONTROL_VEL_XY_I                   1.0f    // horizontal velocity controller I gain default
- # define POSCONTROL_VEL_XY_D                   0.5f    // horizontal velocity controller D gain default
- # define POSCONTROL_VEL_XY_IMAX                1000.0f // horizontal velocity controller IMAX gain default
- # define POSCONTROL_VEL_XY_FILT_HZ             5.0f    // horizontal velocity controller input filter
- # define POSCONTROL_VEL_XY_FILT_D_HZ           5.0f    // horizontal velocity controller input filter for D
-#endif
+const AP_Param::GroupInfo AC_PDNN_SO3::var_info[] = {
+    // @Param: kR
+    // @DisplayName: PID Proportional Gain
+    // @Description: P Gain which produces an output value that is proportional to the current error value
+    AP_GROUPINFO_FLAGS_DEFAULT_POINTER("kR_xy",    0, AC_PDNN_SO3, _kR, default_kR),
+    // @Param: KOmega
+    // @DisplayName: PID Derivative Gain
+    // @Description: D Gain which produces an output that is proportional to the rate of change of the error
+    AP_GROUPINFO_FLAGS_DEFAULT_POINTER("kOmega_xy",    1, AC_PDNN_SO3, _kOmega, default_kOmega),
 
-// vibration compensation gains
-#define POSCONTROL_VIBE_COMP_P_GAIN 0.250f
-#define POSCONTROL_VIBE_COMP_I_GAIN 0.125f
-
-// velocity offset targets timeout if not updated within 3 seconds
-#define POSCONTROL_POSVELACCEL_OFFSET_TARGET_TIMEOUT_MS 3000
-
-AC_PosControl *AC_PosControl::_singleton;
-
-const AP_Param::GroupInfo AC_PosControl::var_info[] = {
-    // 0 was used for HOVER
-
-    // @Param: _ACC_XY_FILT
-    // @DisplayName: XY Acceleration filter cutoff frequency
-    // @Description: Lower values will slow the response of the navigation controller and reduce twitchiness
-    // @Units: Hz
-    // @Range: 0.5 5
-    // @Increment: 0.1
-    // @User: Advanced
-
-    // @Param: _POSZ_P
-    // @DisplayName: Position (vertical) controller P gain
-    // @Description: Position (vertical) controller P gain.  Converts the difference between the desired altitude and actual altitude into a climb or descent rate which is passed to the throttle rate controller
-    // @Range: 1.000 3.000
-    // @User: Standard
-    AP_SUBGROUPINFO(_p_pos_z, "_POSZ_", 2, AC_PosControl, AC_P_1D),
-
-    // @Param: _VELZ_P
-    // @DisplayName: Velocity (vertical) controller P gain
-    // @Description: Velocity (vertical) controller P gain.  Converts the difference between desired vertical speed and actual speed into a desired acceleration that is passed to the throttle acceleration controller
-    // @Range: 1.000 8.000
-    // @User: Standard
-
-    // @Param: _VELZ_I
-    // @DisplayName: Velocity (vertical) controller I gain
-    // @Description: Velocity (vertical) controller I gain.  Corrects long-term difference in desired velocity to a target acceleration
-    // @Range: 0.02 1.00
-    // @Increment: 0.01
-    // @User: Advanced
-
-    // @Param: _VELZ_IMAX
-    // @DisplayName: Velocity (vertical) controller I gain maximum
-    // @Description: Velocity (vertical) controller I gain maximum.  Constrains the target acceleration that the I gain will output
-    // @Range: 1.000 8.000
-    // @User: Standard
-
-    // @Param: _VELZ_D
-    // @DisplayName: Velocity (vertical) controller D gain
-    // @Description: Velocity (vertical) controller D gain.  Corrects short-term changes in velocity
-    // @Range: 0.00 1.00
-    // @Increment: 0.001
-    // @User: Advanced
-
-    // @Param: _VELZ_FF
-    // @DisplayName: Velocity (vertical) controller Feed Forward gain
-    // @Description: Velocity (vertical) controller Feed Forward gain.  Produces an output that is proportional to the magnitude of the target
-    // @Range: 0 1
-    // @Increment: 0.01
-    // @User: Advanced
-
-    // @Param: _VELZ_FLTE
-    // @DisplayName: Velocity (vertical) error filter
-    // @Description: Velocity (vertical) error filter.  This filter (in Hz) is applied to the input for P and I terms
-    // @Range: 0 100
-    // @Units: Hz
-    // @User: Advanced
-
-    // @Param: _VELZ_FLTD
-    // @DisplayName: Velocity (vertical) input filter for D term
-    // @Description: Velocity (vertical) input filter for D term.  This filter (in Hz) is applied to the input for D terms
-    // @Range: 0 100
-    // @Units: Hz
-    // @User: Advanced
-    AP_SUBGROUPINFO(_pid_vel_z, "_VELZ_", 3, AC_PosControl, AC_PID_Basic),
-
-    // @Param: _ACCZ_P
-    // @DisplayName: Acceleration (vertical) controller P gain
-    // @Description: Acceleration (vertical) controller P gain.  Converts the difference between desired vertical acceleration and actual acceleration into a motor output
-    // @Range: 0.200 1.500
-    // @Increment: 0.05
-    // @User: Standard
-
-    // @Param: _ACCZ_I
-    // @DisplayName: Acceleration (vertical) controller I gain
-    // @Description: Acceleration (vertical) controller I gain.  Corrects long-term difference in desired vertical acceleration and actual acceleration
-    // @Range: 0.000 3.000
-    // @User: Standard
-
-    // @Param: _ACCZ_IMAX
-    // @DisplayName: Acceleration (vertical) controller I gain maximum
-    // @Description: Acceleration (vertical) controller I gain maximum.  Constrains the maximum pwm that the I term will generate
-    // @Range: 0 1000
-    // @Units: d%
-    // @User: Standard
-
-    // @Param: _ACCZ_D
-    // @DisplayName: Acceleration (vertical) controller D gain
-    // @Description: Acceleration (vertical) controller D gain.  Compensates for short-term change in desired vertical acceleration vs actual acceleration
-    // @Range: 0.000 0.400
-    // @User: Standard
-
-    // @Param: _ACCZ_FF
-    // @DisplayName: Acceleration (vertical) controller feed forward
-    // @Description: Acceleration (vertical) controller feed forward
-    // @Range: 0 0.5
-    // @Increment: 0.001
-    // @User: Standard
-
-    // @Param: _ACCZ_FLTT
-    // @DisplayName: Acceleration (vertical) controller target frequency in Hz
-    // @Description: Acceleration (vertical) controller target frequency in Hz
-    // @Range: 1 50
-    // @Increment: 1
-    // @Units: Hz
-    // @User: Standard
-
-    // @Param: _ACCZ_FLTE
-    // @DisplayName: Acceleration (vertical) controller error frequency in Hz
-    // @Description: Acceleration (vertical) controller error frequency in Hz
-    // @Range: 1 100
-    // @Increment: 1
-    // @Units: Hz
-    // @User: Standard
-
-    // @Param: _ACCZ_FLTD
-    // @DisplayName: Acceleration (vertical) controller derivative frequency in Hz
-    // @Description: Acceleration (vertical) controller derivative frequency in Hz
-    // @Range: 1 100
-    // @Increment: 1
-    // @Units: Hz
-    // @User: Standard
-
-    // @Param: _ACCZ_SMAX
-    // @DisplayName: Accel (vertical) slew rate limit
-    // @Description: Sets an upper limit on the slew rate produced by the combined P and D gains. If the amplitude of the control action produced by the rate feedback exceeds this value, then the D+P gain is reduced to respect the limit. This limits the amplitude of high frequency oscillations caused by an excessive gain. The limit should be set to no more than 25% of the actuators maximum slew rate to allow for load effects. Note: The gain will not be reduced to less than 10% of the nominal value. A value of zero will disable this feature.
-    // @Range: 0 200
-    // @Increment: 0.5
-    // @User: Advanced
-
-    // @Param: _ACCZ_PDMX
-    // @DisplayName: Acceleration (vertical) controller PD sum maximum
-    // @Description: Acceleration (vertical) controller PD sum maximum.  The maximum/minimum value that the sum of the P and D term can output
-    // @Range: 0 1000
-    // @Units: d%
-
-    // @Param: _ACCZ_D_FF
-    // @DisplayName: Accel (vertical) Derivative FeedForward Gain
-    // @Description: FF D Gain which produces an output that is proportional to the rate of change of the target
-    // @Range: 0 0.02
-    // @Increment: 0.0001
-    // @User: Advanced
-
-    // @Param: _ACCZ_NTF
-    // @DisplayName: Accel (vertical) Target notch filter index
-    // @Description: Accel (vertical) Target notch filter index
-    // @Range: 1 8
-    // @User: Advanced
-
-    // @Param: _ACCZ_NEF
-    // @DisplayName: Accel (vertical) Error notch filter index
-    // @Description: Accel (vertical) Error notch filter index
-    // @Range: 1 8
-    // @User: Advanced
-
-    AP_SUBGROUPINFO(_pid_accel_z, "_ACCZ_", 4, AC_PosControl, AC_PID),
-
-    // @Param: _POSXY_P
-    // @DisplayName: Position (horizontal) controller P gain
-    // @Description: Position controller P gain.  Converts the distance (in the latitude direction) to the target location into a desired speed which is then passed to the loiter latitude rate controller
-    // @Range: 0.500 2.000
-    // @User: Standard
-    AP_SUBGROUPINFO(_p_pos_xy, "_POSXY_", 5, AC_PosControl, AC_P_2D),
-
-    // @Param: _VELXY_P
-    // @DisplayName: Velocity (horizontal) P gain
-    // @Description: Velocity (horizontal) P gain.  Converts the difference between desired and actual velocity to a target acceleration
-    // @Range: 0.1 6.0
-    // @Increment: 0.1
-    // @User: Advanced
-
-    // @Param: _VELXY_I
-    // @DisplayName: Velocity (horizontal) I gain
-    // @Description: Velocity (horizontal) I gain.  Corrects long-term difference between desired and actual velocity to a target acceleration
-    // @Range: 0.02 1.00
-    // @Increment: 0.01
-    // @User: Advanced
-
-    // @Param: _VELXY_D
-    // @DisplayName: Velocity (horizontal) D gain
-    // @Description: Velocity (horizontal) D gain.  Corrects short-term changes in velocity
-    // @Range: 0.00 1.00
-    // @Increment: 0.001
-    // @User: Advanced
-
-    // @Param: _VELXY_IMAX
-    // @DisplayName: Velocity (horizontal) integrator maximum
-    // @Description: Velocity (horizontal) integrator maximum.  Constrains the target acceleration that the I gain will output
-    // @Range: 0 4500
-    // @Increment: 10
-    // @Units: cm/s/s
-    // @User: Advanced
-
-    // @Param: _VELXY_FLTE
-    // @DisplayName: Velocity (horizontal) input filter
-    // @Description: Velocity (horizontal) input filter.  This filter (in Hz) is applied to the input for P and I terms
-    // @Range: 0 100
-    // @Units: Hz
-    // @User: Advanced
-
-    // @Param: _VELXY_FLTD
-    // @DisplayName: Velocity (horizontal) input filter
-    // @Description: Velocity (horizontal) input filter.  This filter (in Hz) is applied to the input for D term
-    // @Range: 0 100
-    // @Units: Hz
-    // @User: Advanced
-
-    // @Param: _VELXY_FF
-    // @DisplayName: Velocity (horizontal) feed forward gain
-    // @Description: Velocity (horizontal) feed forward gain.  Converts the difference between desired velocity to a target acceleration
-    // @Range: 0 6
-    // @Increment: 0.01
-    // @User: Advanced
-    AP_SUBGROUPINFO(_pid_vel_xy, "_VELXY_", 6, AC_PosControl, AC_PID_2D),
-
-    // @Param: _ANGLE_MAX
-    // @DisplayName: Position Control Angle Max
-    // @Description: Maximum lean angle autopilot can request.  Set to zero to use ANGLE_MAX parameter value
-    // @Units: deg
-    // @Range: 0 45
-    // @Increment: 1
-    // @User: Advanced
-    AP_GROUPINFO("_ANGLE_MAX", 7, AC_PosControl, _lean_angle_max, 0.0f),
-
-    // IDs 8,9 used for _TC_XY and _TC_Z in beta release candidate
-
-    // @Param: _JERK_XY
-    // @DisplayName: Jerk limit for the horizontal kinematic input shaping
-    // @Description: Jerk limit of the horizontal kinematic path generation used to determine how quickly the aircraft varies the acceleration target
-    // @Units: m/s/s/s
-    // @Range: 1 20
-    // @Increment: 1
-    // @User: Advanced
-    AP_GROUPINFO("_JERK_XY", 10, AC_PosControl, _shaping_jerk_xy, POSCONTROL_JERK_XY),
-
-    // @Param: _JERK_Z
-    // @DisplayName: Jerk limit for the vertical kinematic input shaping
-    // @Description: Jerk limit of the vertical kinematic path generation used to determine how quickly the aircraft varies the acceleration target
-    // @Units: m/s/s/s
-    // @Range: 5 50
-    // @Increment: 1
-    // @User: Advanced
-    AP_GROUPINFO("_JERK_Z", 11, AC_PosControl, _shaping_jerk_z, POSCONTROL_JERK_Z),
-    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~添加pdnn 参数表~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    AP_SUBGROUPINFO(_pdnn_pos, "_PDNN_", 12, AC_PosControl, AC_PDNN_3D),
-    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~END~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    AP_GROUPINFO_FLAGS_DEFAULT_POINTER("kR_z",    2, AC_PDNN_SO3, _kR_z, default_kR_z),
+    
+    AP_GROUPINFO_FLAGS_DEFAULT_POINTER("kOmega_z",    3, AC_PDNN_SO3, _kOmega_z, default_kOmega_z),
 
     AP_GROUPEND
 };
 
-// Default constructor.
-// Note that the Vector/Matrix constructors already implicitly zero
-// their values.
-//
-AC_PosControl::AC_PosControl(AP_AHRS_View& ahrs, const AP_InertialNav& inav,
-                             const AP_Motors& motors, AC_AttitudeControl& attitude_control) :
-    _ahrs(ahrs),
-    _inav(inav),
-    _motors(motors),
-    _attitude_control(attitude_control),
-    _p_pos_xy(POSCONTROL_POS_XY_P),
-    _p_pos_z(POSCONTROL_POS_Z_P),
-    _pid_vel_xy(POSCONTROL_VEL_XY_P, POSCONTROL_VEL_XY_I, POSCONTROL_VEL_XY_D, 0.0f, POSCONTROL_VEL_XY_IMAX, POSCONTROL_VEL_XY_FILT_HZ, POSCONTROL_VEL_XY_FILT_D_HZ),
-    _pid_vel_z(POSCONTROL_VEL_Z_P, 0.0f, 0.0f, 0.0f, POSCONTROL_VEL_Z_IMAX, POSCONTROL_VEL_Z_FILT_HZ, POSCONTROL_VEL_Z_FILT_D_HZ),
-    _pid_accel_z(POSCONTROL_ACC_Z_P, POSCONTROL_ACC_Z_I, POSCONTROL_ACC_Z_D, 0.0f, POSCONTROL_ACC_Z_IMAX, 0.0f, POSCONTROL_ACC_Z_FILT_HZ, 0.0f),
-    _vel_max_xy_cms(POSCONTROL_SPEED),
-    _vel_max_up_cms(POSCONTROL_SPEED_UP),
-    _vel_max_down_cms(POSCONTROL_SPEED_DOWN),
-    _accel_max_xy_cmss(POSCONTROL_ACCEL_XY), 
-    _accel_max_z_cmss(POSCONTROL_ACCEL_Z),
-    _jerk_max_xy_cmsss(POSCONTROL_JERK_XY * 100.0),
-    _jerk_max_z_cmsss(POSCONTROL_JERK_Z * 100.0),
-    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~pdnn初始化~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    _pdnn_pos(POSCONTROL_PDNN_XY_P, POSCONTROL_PDNN_XY_D, POSCONTROL_PDNN_Z_P, POSCONTROL_PDNN_Z_D, 0.0f, POSCONTROL_VEL_XY_FILT_HZ, POSCONTROL_VEL_XY_FILT_D_HZ)
-    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~END~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// Constructor 构造函数
+AC_PDNN_SO3::AC_PDNN_SO3(float initial_kR, float initial_kOmega, float initial_kR_z, float initial_kOmega_z) :
+    default_kR(initial_kR),
+    default_kOmega(initial_kOmega),
+    default_kR_z(initial_kR_z),
+    default_kOmega_z(initial_kOmega_z)
 {
-    AP_Param::setup_object_defaults(this, var_info);
-
-    _singleton = this;
-}
-
-
-///
-/// 3D position shaper
-///
-
-/// input_pos_xyz - calculate a jerk limited path from the current position, velocity and acceleration to an input position.
-///     The function takes the current position, velocity, and acceleration and calculates the required jerk limited adjustment to the acceleration for the next time dt.
-///     The kinematic path is constrained by the maximum jerk parameter and the velocity and acceleration limits set using the function set_max_speed_accel_xy.
-///     The jerk limit defines the acceleration error decay in the kinematic path as the system approaches constant acceleration.
-///     The jerk limit also defines the time taken to achieve the maximum acceleration.
-///     The function alters the input velocity to be the velocity that the system could reach zero acceleration in the minimum time.
-void AC_PosControl::input_pos_xyz(const Vector3p& pos, float pos_terrain_target, float terrain_buffer)
-{
-    // Terrain following velocity scalar must be calculated before we remove the position offset
-    const float offset_z_scaler = pos_offset_z_scaler(pos_terrain_target, terrain_buffer);
-    set_pos_terrain_target_cm(pos_terrain_target);
-
-    // calculated increased maximum acceleration and jerk if over speed
-    const float overspeed_gain = calculate_overspeed_gain();
-    const float accel_max_z_cmss = _accel_max_z_cmss * overspeed_gain;
-    const float jerk_max_z_cmsss = _jerk_max_z_cmsss * overspeed_gain;
-
-    update_pos_vel_accel_xy(_pos_desired.xy(), _vel_desired.xy(), _accel_desired.xy(), _dt, _limit_vector.xy(), _p_pos_xy.get_error(), _pid_vel_xy.get_error());
-
-    // adjust desired altitude if motors have not hit their limits
-    update_pos_vel_accel(_pos_desired.z, _vel_desired.z, _accel_desired.z, _dt, _limit_vector.z, _p_pos_z.get_error(), _pid_vel_z.get_error());
-
-    // calculate the horizontal and vertical velocity limits to travel directly to the destination defined by pos
-    float vel_max_xy_cms = 0.0f;
-    float vel_max_z_cms = 0.0f;
-    Vector3f dest_vector = (pos - _pos_desired).tofloat();
-    if (is_positive(dest_vector.length_squared()) ) {
-        dest_vector.normalize();
-        float dest_vector_xy_length = dest_vector.xy().length();
-
-        float vel_max_cms = kinematic_limit(dest_vector, _vel_max_xy_cms, _vel_max_up_cms, _vel_max_down_cms);
-        vel_max_xy_cms = vel_max_cms * dest_vector_xy_length;
-        vel_max_z_cms = fabsf(vel_max_cms * dest_vector.z);
-    }
-
-    // reduce speed if we are reaching the edge of our vertical buffer
-    vel_max_xy_cms *= offset_z_scaler;
-
-    Vector2f vel;
-    Vector2f accel;
-    shape_pos_vel_accel_xy(pos.xy(), vel, accel, _pos_desired.xy(), _vel_desired.xy(), _accel_desired.xy(),
-                           vel_max_xy_cms, _accel_max_xy_cmss, _jerk_max_xy_cmsss, _dt, false);
-
-    float posz = pos.z;
-    shape_pos_vel_accel(posz, 0, 0,
-                        _pos_desired.z, _vel_desired.z, _accel_desired.z,
-                        -vel_max_z_cms, vel_max_z_cms,
-                        -constrain_float(accel_max_z_cmss, 0.0f, 750.0f), accel_max_z_cmss,
-                        jerk_max_z_cmsss, _dt, false);
-}
-
-
-/// pos_offset_z_scaler - calculates a multiplier used to reduce the horizontal velocity to allow the z position controller to stay within the provided buffer range
-float AC_PosControl::pos_offset_z_scaler(float pos_offset_z, float pos_offset_z_buffer) const
-{
-    if (is_zero(pos_offset_z_buffer)) {
-        return 1.0;
-    }
-    float pos_offset_error_z = _inav.get_position_z_up_cm() - (_pos_target.z + (pos_offset_z - _pos_terrain));
-    return constrain_float((1.0 - (fabsf(pos_offset_error_z) - 0.5 * pos_offset_z_buffer) / (0.5 * pos_offset_z_buffer)), 0.01, 1.0);
-}
-
-///
-/// Lateral position controller
-///
-
-/// set_max_speed_accel_xy - set the maximum horizontal speed in cm/s and acceleration in cm/s/s
-///     This function only needs to be called if using the kinematic shaping.
-///     This can be done at any time as changes in these parameters are handled smoothly
-///     by the kinematic shaping.
-void AC_PosControl::set_max_speed_accel_xy(float speed_cms, float accel_cmss)
-{
-    _vel_max_xy_cms = speed_cms;
-    _accel_max_xy_cmss = accel_cmss;
-
-    // ensure the horizontal jerk is less than the vehicle is capable of
-    const float jerk_max_cmsss = MIN(_attitude_control.get_ang_vel_roll_max_rads(), _attitude_control.get_ang_vel_pitch_max_rads()) * GRAVITY_MSS * 100.0;
-    const float snap_max_cmssss = MIN(_attitude_control.get_accel_roll_max_radss(), _attitude_control.get_accel_pitch_max_radss()) * GRAVITY_MSS * 100.0;
-
-    // get specified jerk limit
-    _jerk_max_xy_cmsss = _shaping_jerk_xy * 100.0;
-
-    // limit maximum jerk based on maximum angular rate
-    if (is_positive(jerk_max_cmsss) && _attitude_control.get_bf_feedforward()) {
-        _jerk_max_xy_cmsss = MIN(_jerk_max_xy_cmsss, jerk_max_cmsss);
-    }
-
-    // limit maximum jerk to maximum possible average jerk based on angular acceleration
-    if (is_positive(snap_max_cmssss) && _attitude_control.get_bf_feedforward()) {
-        _jerk_max_xy_cmsss = MIN(0.5 * safe_sqrt(_accel_max_xy_cmss * snap_max_cmssss), _jerk_max_xy_cmsss);
-    }
-}
-
-/// set_max_speed_accel_xy - set the position controller correction velocity and acceleration limit
-///     This should be done only during initialisation to avoid discontinuities
-void AC_PosControl::set_correction_speed_accel_xy(float speed_cms, float accel_cmss)
-{
-    _p_pos_xy.set_limits(speed_cms, accel_cmss, 0.0f);
-}
-
-/// init_xy_controller_stopping_point - initialise the position controller to the stopping point with zero velocity and acceleration.
-///     This function should be used when the expected kinematic path assumes a stationary initial condition but does not specify a specific starting position.
-///     The starting position can be retrieved by getting the position target using get_pos_desired_cm() after calling this function.
-void AC_PosControl::init_xy_controller_stopping_point()
-{
-    init_xy_controller();
-
-    get_stopping_point_xy_cm(_pos_desired.xy());
-    _pos_target.xy() = _pos_desired.xy() + _pos_offset.xy();
-    _vel_desired.xy().zero();
-    _accel_desired.xy().zero();
-}
-
-// relax_velocity_controller_xy - initialise the position controller to the current position and velocity with decaying acceleration.
-///     This function decays the output acceleration by 95% every half second to achieve a smooth transition to zero requested acceleration.
-void AC_PosControl::relax_velocity_controller_xy()
-{
-    // decay acceleration and therefore current attitude target to zero
-    // this will be reset by init_xy_controller() if !is_active_xy()
-    if (is_positive(_dt)) {
-        float decay = 1.0 - _dt / (_dt + POSCONTROL_RELAX_TC);
-        _accel_target.xy() *= decay;
-    }
-
-    init_xy_controller();
-}
-
-/// reduce response for landing
-void AC_PosControl::soften_for_landing_xy()
-{
-    // decay position error to zero
-    if (is_positive(_dt)) {
-        _pos_target.xy() += (_inav.get_position_xy_cm().topostype() - _pos_target.xy()) * (_dt / (_dt + POSCONTROL_RELAX_TC));
-        _pos_desired.xy() = _pos_target.xy() - _pos_offset.xy();
-    }
-
-    // Prevent I term build up in xy velocity controller.
-    // Note that this flag is reset on each loop in update_xy_controller()
-    set_externally_limited_xy();
-}
-
-/// init_xy_controller - initialise the position controller to the current position, velocity, acceleration and attitude.
-///     This function is the default initialisation for any position control that provides position, velocity and acceleration.
-void AC_PosControl::init_xy_controller()
-{
-    // initialise offsets to target offsets and ensure offset targets are zero if they have not been updated.
-    init_offsets_xy();
+    // load parameter values from eeprom
+    AP_Param::setup_object_defaults(this, var_info); //读取eeprom存储参数值，也可以不用eeprom，选择在代码中直接定义硬编码参数值，坏处是调试后每次都会重置，不会保存。
     
-    // set roll, pitch lean angle targets to current attitude
-    const Vector3f &att_target_euler_cd = _attitude_control.get_att_target_euler_cd();
-    _roll_target = att_target_euler_cd.x;
-    _pitch_target = att_target_euler_cd.y;
-    _yaw_target = att_target_euler_cd.z; // todo: this should be thrust vector heading, not yaw.
-    _yaw_rate_target = 0.0f;
-    _angle_max_override_cd = 0.0;
+    // reset input filter to first value received 重置控制器
+    _reset = true; //每次调用重置为true
+}
 
-    _pos_target.xy() = _inav.get_position_xy_cm().topostype();
-    _pos_desired.xy() = _pos_target.xy() - _pos_offset.xy();
-
-    _vel_target.xy() = _inav.get_velocity_xy_cms();
-    _vel_desired.xy() = _vel_target.xy() - _vel_offset.xy();
-
-    // Set desired accel to zero because raw acceleration is prone to noise
-    _accel_desired.xy().zero();
-
-    if (!is_active_xy()) {
-        lean_angles_to_accel_xy(_accel_target.x, _accel_target.y);
+//  update_all - set target and measured inputs to PDNN controller and calculate outputs
+//  target and error are filtered
+//  the derivative is then calculated and filtered
+//  the integral is then updated if it does not increase in the direction of the limit vector
+Vector3f AC_PDNN_SO3::update_all(const Matrix3f &R_c, const Matrix3f &R, const Vector3f &Omega, float dt, bool Rc_active)
+{
+    // don't process inf or NaN //检查输入的有效性，避免处理空值NaN与无穷大inf的值
+    if (R_c.is_nan() || R.is_nan()) {
+        return Vector3f{}; //返回一个vector3f避免报错
     }
-
-    // limit acceleration using maximum lean angles
-    float angle_max = MIN(_attitude_control.get_althold_lean_angle_max_cd(), get_lean_angle_max_cd());
-    float accel_max = angle_to_accel(angle_max * 0.01) * 100.0;
-    _accel_target.xy().limit_length(accel_max);
-
-    // initialise I terms from lean angles
-    _pid_vel_xy.reset_filter();
-    // initialise the I term to _accel_target - _accel_desired
-    // _accel_desired is zero and can be removed from the equation
-    _pid_vel_xy.set_integrator(_accel_target.xy() - _vel_target.xy() * _pid_vel_xy.ff());
-
-    // initialise ekf xy reset handler
-    init_ekf_xy_reset();
-
-    // initialise z_controller time out
-    _last_update_xy_ticks = AP::scheduler().ticks32();
-}
-
-/// input_accel_xy - calculate a jerk limited path from the current position, velocity and acceleration to an input acceleration.
-///     The function takes the current position, velocity, and acceleration and calculates the required jerk limited adjustment to the acceleration for the next time dt.
-///     The kinematic path is constrained by the maximum acceleration and jerk set using the function set_max_speed_accel_xy.
-///     The jerk limit defines the acceleration error decay in the kinematic path as the system approaches constant acceleration.
-///     The jerk limit also defines the time taken to achieve the maximum acceleration.
-void AC_PosControl::input_accel_xy(const Vector3f& accel)
-{
-    update_pos_vel_accel_xy(_pos_desired.xy(), _vel_desired.xy(), _accel_desired.xy(), _dt, _limit_vector.xy(), _p_pos_xy.get_error(), _pid_vel_xy.get_error());
-    shape_accel_xy(accel.xy(), _accel_desired.xy(), _jerk_max_xy_cmsss, _dt);
-}
-
-/// input_vel_accel_xy - calculate a jerk limited path from the current position, velocity and acceleration to an input velocity and acceleration.
-///     The vel is projected forwards in time based on a time step of dt and acceleration accel.
-///     The function takes the current position, velocity, and acceleration and calculates the required jerk limited adjustment to the acceleration for the next time dt.
-///     The kinematic path is constrained by the maximum acceleration and jerk set using the function set_max_speed_accel_xy.
-///     The parameter limit_output specifies if the velocity and acceleration limits are applied to the sum of commanded and correction values or just correction.
-void AC_PosControl::input_vel_accel_xy(Vector2f& vel, const Vector2f& accel, bool limit_output)
-{
-    update_pos_vel_accel_xy(_pos_desired.xy(), _vel_desired.xy(), _accel_desired.xy(), _dt, _limit_vector.xy(), _p_pos_xy.get_error(), _pid_vel_xy.get_error());
-
-    shape_vel_accel_xy(vel, accel, _vel_desired.xy(), _accel_desired.xy(),
-        _accel_max_xy_cmss, _jerk_max_xy_cmsss, _dt, limit_output);
-
-    update_vel_accel_xy(vel, accel, _dt, Vector2f(), Vector2f());
-}
-
-/// input_pos_vel_accel_xy - calculate a jerk limited path from the current position, velocity and acceleration to an input position velocity and acceleration.
-///     The pos and vel are projected forwards in time based on a time step of dt and acceleration accel.
-///     The function takes the current position, velocity, and acceleration and calculates the required jerk limited adjustment to the acceleration for the next time dt.
-///     The function alters the pos and vel to be the kinematic path based on accel
-///     The parameter limit_output specifies if the velocity and acceleration limits are applied to the sum of commanded and correction values or just correction.
-void AC_PosControl::input_pos_vel_accel_xy(Vector2p& pos, Vector2f& vel, const Vector2f& accel, bool limit_output)
-{
-    update_pos_vel_accel_xy(_pos_desired.xy(), _vel_desired.xy(), _accel_desired.xy(), _dt, _limit_vector.xy(), _p_pos_xy.get_error(), _pid_vel_xy.get_error());
-
-    shape_pos_vel_accel_xy(pos, vel, accel, _pos_desired.xy(), _vel_desired.xy(), _accel_desired.xy(),
-                           _vel_max_xy_cms, _accel_max_xy_cmss, _jerk_max_xy_cmsss, _dt, limit_output);
-
-    update_pos_vel_accel_xy(pos, vel, accel, _dt, Vector2f(), Vector2f(), Vector2f());
-}
-
-/// update the horizontal position and velocity offsets
-/// this moves the offsets (e.g _pos_offset, _vel_offset, _accel_offset) towards the targets (e.g. _pos_offset_target, _vel_offset_target, _accel_offset_target)
-void AC_PosControl::update_offsets_xy()
-{
-    // check for offset target timeout
-    uint32_t now_ms = AP_HAL::millis();
-    if (now_ms - _posvelaccel_offset_target_xy_ms > POSCONTROL_POSVELACCEL_OFFSET_TARGET_TIMEOUT_MS) {
-        _pos_offset_target.xy().zero();
-        _vel_offset_target.xy().zero();
-        _accel_offset_target.xy().zero();
-    }
-
-    // update position, velocity, accel offsets for this iteration
-    update_pos_vel_accel_xy(_pos_offset_target.xy(), _vel_offset_target.xy(), _accel_offset_target.xy(), _dt, Vector2f(), Vector2f(), Vector2f());
-    update_pos_vel_accel_xy(_pos_offset.xy(), _vel_offset.xy(), _accel_offset.xy(), _dt, _limit_vector.xy(), _p_pos_xy.get_error(), _pid_vel_xy.get_error());
-
-    // input shape horizontal position, velocity and acceleration offsets
-    shape_pos_vel_accel_xy(_pos_offset_target.xy(), _vel_offset_target.xy(), _accel_offset_target.xy(),
-                            _pos_offset.xy(), _vel_offset.xy(), _accel_offset.xy(),
-                            _vel_max_xy_cms, _accel_max_xy_cmss, _jerk_max_xy_cmsss, _dt, false);
-}
-
-/// stop_pos_xy_stabilisation - sets the target to the current position to remove any position corrections from the system
-void AC_PosControl::stop_pos_xy_stabilisation()
-{
-    _pos_target.xy() = _inav.get_position_xy_cm().topostype();
-    _pos_desired.xy() = _pos_target.xy() - _pos_offset.xy();
-}
-
-/// stop_vel_xy_stabilisation - sets the target to the current position and velocity to the current velocity to remove any position and velocity corrections from the system
-void AC_PosControl::stop_vel_xy_stabilisation()
-{
-    _pos_target.xy() =  _inav.get_position_xy_cm().topostype();
-    _pos_desired.xy() = _pos_target.xy() - _pos_offset.xy();
-    
-    _vel_target.xy() = _inav.get_velocity_xy_cms();;
-    _vel_desired.xy() = _vel_target.xy() - _vel_offset.xy();
-
-    // initialise I terms from lean angles
-    _pid_vel_xy.reset_filter();
-    _pid_vel_xy.reset_I();
-}
-
-// is_active_xy - returns true if the xy position controller has been run in the previous loop
-bool AC_PosControl::is_active_xy() const
-{
-    const uint32_t dt_ticks = AP::scheduler().ticks32() - _last_update_xy_ticks;  //时间间隔dt_ticks计算
-    return dt_ticks <= 1;
-}
-
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~is_active_Rc~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-bool AC_PosControl::is_active_Rc() const
-{
-    const uint32_t dt_ticks_Rc = AP::scheduler().ticks32() - _last_update_Rc_ticks;  //时间间隔dt_ticks计算
-    return dt_ticks_Rc <= 1;
-}
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~END~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~   
-
-/// update_xy_controller - runs the horizontal position controller correcting position, velocity and acceleration errors.
-///     Position and velocity errors are converted to velocity and acceleration targets using PID objects
-///     Desired velocity and accelerations are added to these corrections as they are calculated
-///     Kinematically consistent target position and desired velocity and accelerations should be provided before calling this function
-
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~横向位置控制器更新~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~横向位置控制器更新~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~update_xy_controller~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-void AC_PosControl::update_xy_controller()
-{
-    // check for ekf xy position reset // 卡尔曼滤波器 EKF XY 位置重置检查
-    handle_ekf_xy_reset();
-
-    // Check for position control time out
-    if (!is_active_xy()) {                //如果横向位置控制不活跃
-        init_xy_controller();             //重新初始化横向位置控制器
-        if (has_good_timing()) {          //检查时间同步
-            // call internal error because initialisation has not been done
-            //INTERNAL_ERROR(AP_InternalError::error_t::flow_of_control); //逻辑：如果不活跃，且初始化后，时间同步正常，则报错有内部错误
-        }
-    }
-    _last_update_xy_ticks = AP::scheduler().ticks32(); //更新最后一次控制器调用时间，ticks32() 是一个方法，返回系统当前的32位时间戳，其返回值用于计算时间间隔dt_ticks
-
-    float ahrsGndSpdLimit, ahrsControlScaleXY;
-    AP::ahrs().getControlLimits(ahrsGndSpdLimit, ahrsControlScaleXY); //获取地面速度限制和横向控制缩放比例
-
-    // update the position, velocity and acceleration offsets
-    update_offsets_xy(); //更新位置、速度和加速度的偏移量（误差）
-
-    // Position Controller
-
-    _pos_target.xy() = _pos_desired.xy() +  _pos_offset.xy(); //对XY目标位置进行赋值：期望位置+偏移量补偿，这个_pos_target.xy()值是实时更新的
-
-    // determine the combined position of the actual position and the disturbance from system ID mode
-    const Vector3f &curr_pos = _inav.get_position_neu_cm();  //通过 `inav` 系统获取无人机在北-东-上（NEU）坐标系中的位置，单位是厘米。
-    Vector3f comb_pos = curr_pos;  // 定义一个新的三维向量 `comb_pos`，并将 `curr_pos` 赋值给它。
-    comb_pos.xy() += _disturb_pos; //取得 `comb_pos` 的 x 和 y 分量，形成一个二维向量并在当前位置加上干扰的位置
-
-    Vector2f vel_target = _p_pos_xy.update_all(_pos_target.x, _pos_target.y, comb_pos); //`_p_pos_xy` 是一个用于横向位置控制的P（比例）控制器。控制器输出目标速度
-    _pos_desired.xy() = _pos_target.xy() - _pos_offset.xy(); //对XY期望位置进行再赋值：这个值也是实时更新的
-
-    // Velocity Controller
-
-    // add velocity feed-forward scaled to compensate for optical flow measurement induced EKF noise
-    vel_target *= ahrsControlScaleXY; //光流噪声补偿缩放因子。如果没有用到光流可以去掉
-
-    _vel_target.xy() = vel_target; //将位置控制得到的2维目标速度向量赋值给3维目标速度向量
-    _vel_target.xy() += _vel_desired.xy() + _vel_offset.xy(); //加入期望速度 (`_vel_desired.xy()`) 和速度偏移量 (`_vel_offset.xy()`)。
-
-    // determine the combined velocity of the actual velocity and the disturbance from system ID mode
-    const Vector2f &curr_vel = _inav.get_velocity_xy_cms(); //获取由惯性导航模块计算出的横向（x 和 y）速度，单位是厘米每秒（cm/s）。
-    Vector2f comb_vel = curr_vel; 
-    comb_vel += _disturb_vel;  //加入系统标识过程中或者通过扰动观测器估算的速度扰动项
-
-    Vector2f accel_target = _pid_vel_xy.update_all(_vel_target.xy(), comb_vel, _dt, _limit_vector.xy()); //使用 PID 控制器 _pid_vel_xy 来计算目标加速度 (accel_target)。
-
-    // Acceleration Controller
-    
-    // acceleration to correct for velocity error and scale PID output to compensate for optical flow measurement induced EKF noise
-    accel_target *= ahrsControlScaleXY; //缩放因子补偿光流引入的噪声
-
-    // pass the correction acceleration to the target acceleration output
-    _accel_target.xy() = accel_target;
-    _accel_target.xy() += _accel_desired.xy() + _accel_offset.xy(); //期望加速度以及干扰补偿
-
-    // limit acceleration using maximum lean angles //最大允许的倾斜角度和加速度限制
-    float angle_max = MIN(_attitude_control.get_althold_lean_angle_max_cd(), get_lean_angle_max_cd());
-    float accel_max = angle_to_accel(angle_max * 0.01) * 100;
-    // Define the limit vector before we constrain _accel_target 
-    _limit_vector.xy() = _accel_target.xy();
-    if (!limit_accel_xy(_vel_desired.xy(), _accel_target.xy(), accel_max)) {
-        // _accel_target was not limited so we can zero the xy limit vector //加速度限制判断
-        _limit_vector.xy().zero();
-    } else {
-        // Check for pitch limiting in the forward direction //限制后的俯仰角计算
-        const float accel_fwd_unlimited = _limit_vector.x * _ahrs.cos_yaw() + _limit_vector.y * _ahrs.sin_yaw();
-        const float pitch_target_unlimited = accel_to_angle(- MIN(accel_fwd_unlimited, accel_max) * 0.01f) * 100;
-        const float accel_fwd_limited = _accel_target.x * _ahrs.cos_yaw() + _accel_target.y * _ahrs.sin_yaw();
-        const float pitch_target_limited = accel_to_angle(- accel_fwd_limited * 0.01f) * 100;
-        _fwd_pitch_is_limited = is_negative(pitch_target_unlimited) && pitch_target_unlimited < pitch_target_limited;
-    }
-
-    // update angle targets that will be passed to stabilize controller //更新姿态角目标
-    accel_to_lean_angles(_accel_target.x, _accel_target.y, _roll_target, _pitch_target); //通过目标加速度 _accel_target 计算出无人机的目标滚转角 (_roll_target) 和俯仰角 (_pitch_target)。
-    calculate_yaw_and_rate_yaw(); //计算目标航向角和航向角速率。
-
-    // reset the disturbance from system ID mode to zero //扰动复位
-    _disturb_pos.zero();
-    _disturb_vel.zero();
-    
-}
-
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~初始化期望（解算）旋转矩阵Rc~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-void AC_PosControl::init_Rc()
-{
-       // 设置初始 解算体坐标系的各轴
-   _b_1c = Vector3f(1.0f, 0.0f, 0.0f);
-   _b_2c = Vector3f(0.0f, 1.0f, 0.0f); 
-   _b_3c = Vector3f(0.0f, 0.0f, 1.0f);
-
-   // 设置初始 解算旋转矩阵 _Rc 的各列
-    Matrix3f _Rc_T;   //定义_Rc的转置矩阵
-    _Rc_T.a = _b_1c;  // 设置 第一行为 _b_1c
-    _Rc_T.b = _b_2c;  // 设置 第二行为 _b_2c
-    _Rc_T.c = _b_3c;  // 设置 第三行为 _b_3c
-    _Rc = _Rc_T.transposed();  //transpose()是就地修改，transposed()是返回新的矩阵，注意区别
-
-   _last_update_Rc_ticks = AP::scheduler().ticks32();  //记录时间戳
-}
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~END~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~期望（解算）旋转矩阵Rc更新主循环~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-void AC_PosControl::update_Rc()
-{
- // check for ekf xy position reset // 卡尔曼滤波器 EKF XY 位置重置检查
-   handle_ekf_xy_reset();
-// Check for position control time out
-    if (!is_active_Rc()) {                //如果Rc update不活跃
-        init_Rc();                        //重新初始化Rc update
-    }
-   _last_update_Rc_ticks = AP::scheduler().ticks32(); //更新最后一次控制器调用时间，ticks32() 是一个方法，返回系统当前的32位时间戳，其返回值用于计算时间间隔dt_ticks
-//接下来计算b3c=fd/||fd||
-    //如果fd不是零向量，则归一化后作为b3轴
-    static float _t = 0.0f;
-    const float t_start = 10.0f;
-    if (_event_interlock){
-
-            // 更新时间
-    _t += 1.0f/400.0f;
-   
-    if (_t > t_start) {   //n秒之后再进行时变
-        // ====== 期望滚转：绕 b1 轴 ±45° 正弦振荡 ======
-    const float A = radians(20.0f);      // 振幅 45°
-    const float f = 0.2f;                // 振荡频率 [Hz]，可根据 testbed 能力调整
-    const float omega = 2.0f * M_PI * f; // 角频率
-    const float tau = _t - t_start;
-    const float phi  = A * sinf(omega * tau);
-    const float cphi = cosf(phi);
-    const float sphi = sinf(phi);
-
-    // 只绕 b1 = (1,0,0) 旋转：
-    // R_x(phi) = [1  0     0
-    //             0  cphi -sphi
-    //             0  sphi  cphi]
-    // 其中列向量即为机体系基向量 b1c, b2c, b3c
-    _b_1c = Vector3f(1.0f, 0.0f, 0.0f);
-    _b_2c = Vector3f(0.0f,  cphi,  sphi);
-    _b_3c = Vector3f(0.0f, -sphi,  cphi);
-        //更新_Rc
-        _Rc.a.x = _b_1c.x; _Rc.a.y = _b_2c.x; _Rc.a.z = _b_3c.x; 
-        _Rc.b.x = _b_1c.y; _Rc.b.y = _b_2c.y; _Rc.b.z = _b_3c.y; 
-        _Rc.c.x = _b_1c.z; _Rc.c.y = _b_2c.z; _Rc.c.z = _b_3c.z; }
-
-    else {
-
-    _b_1c = Vector3f(1.0f, 0.0f, 0.0f);
-    _b_2c = Vector3f(0.0f, 1.0f, 0.0f);
-    _b_3c = Vector3f(0.0f, 0.0f, 1.0f);
-        //更新_Rc
-        _Rc.a.x = _b_1c.x; _Rc.a.y = _b_2c.x; _Rc.a.z = _b_3c.x; 
-        _Rc.b.x = _b_1c.y; _Rc.b.y = _b_2c.y; _Rc.b.z = _b_3c.y; 
-        _Rc.c.x = _b_1c.z; _Rc.c.y = _b_2c.z; _Rc.c.z = _b_3c.z;
-
-    }
-    } else {//如果不在guidedmode
-
-    _b_1c = Vector3f(1.0f, 0.0f, 0.0f);
-    _b_2c = Vector3f(0.0f, 1.0f, 0.0f);
-    _b_3c = Vector3f(0.0f, 0.0f, 1.0f);
-    //更新_Rc
-    _Rc.a.x = _b_1c.x; _Rc.a.y = _b_2c.x; _Rc.a.z = _b_3c.x; 
-    _Rc.b.x = _b_1c.y; _Rc.b.y = _b_2c.y; _Rc.b.z = _b_3c.y; 
-    _Rc.c.x = _b_1c.z; _Rc.c.y = _b_2c.z; _Rc.c.z = _b_3c.z; 
-
-    }
-
-    
-    // 只有当 Rc 处于激活状态 且 飞控已解锁 时，才让姿态控制器使用 Rc
-   bool _Rc_active = is_active_Rc() && _event_interlock;
-   _attitude_control.set_Rc(_Rc, _Rc_active); //发送给姿态控制//逻辑：当R_c更新后调用姿态控制
-   
-}
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~END~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-///
-/// Vertical position controller
-///
-
-/// set_max_speed_accel_z - set the maximum vertical speed in cm/s and acceleration in cm/s/s
-///     speed_down can be positive or negative but will always be interpreted as a descent speed.
-///     This function only needs to be called if using the kinematic shaping.
-///     This can be done at any time as changes in these parameters are handled smoothly
-///     by the kinematic shaping.
-void AC_PosControl::set_max_speed_accel_z(float speed_down, float speed_up, float accel_cmss)
-{
-    // ensure speed_down is always negative
-    speed_down = -fabsf(speed_down);
-
-    // sanity check and update
-    if (is_negative(speed_down)) {
-        _vel_max_down_cms = speed_down;
-    }
-    if (is_positive(speed_up)) {
-        _vel_max_up_cms = speed_up;
-    }
-    if (is_positive(accel_cmss)) {
-        _accel_max_z_cmss = accel_cmss;
-    }
-
-    // ensure the vertical Jerk is not limited by the filters in the Z accel PID object
-    _jerk_max_z_cmsss = _shaping_jerk_z * 100.0;
-    if (is_positive(_pid_accel_z.filt_T_hz())) {
-        _jerk_max_z_cmsss = MIN(_jerk_max_z_cmsss, MIN(GRAVITY_MSS * 100.0, _accel_max_z_cmss) * (M_2PI * _pid_accel_z.filt_T_hz()) / 5.0);
-    }
-    if (is_positive(_pid_accel_z.filt_E_hz())) {
-        _jerk_max_z_cmsss = MIN(_jerk_max_z_cmsss, MIN(GRAVITY_MSS * 100.0, _accel_max_z_cmss) * (M_2PI * _pid_accel_z.filt_E_hz()) / 5.0);
-    }
-}
-
-/// set_correction_speed_accel_z - set the position controller correction velocity and acceleration limit
-///     speed_down can be positive or negative but will always be interpreted as a descent speed.
-///     This should be done only during initialisation to avoid discontinuities
-void AC_PosControl::set_correction_speed_accel_z(float speed_down, float speed_up, float accel_cmss)
-{
-    // define maximum position error and maximum first and second differential limits
-    _p_pos_z.set_limits(-fabsf(speed_down), speed_up, accel_cmss, 0.0f);
-}
-
-/// init_z_controller - initialise the position controller to the current position, velocity, acceleration and attitude.
-///     This function is the default initialisation for any position control that provides position, velocity and acceleration.
-///     This function does not allow any negative velocity or acceleration
-void AC_PosControl::init_z_controller_no_descent()
-{
-    // Initialise the position controller to the current throttle, position, velocity and acceleration.
-    init_z_controller();
-
-    // remove all descent if present
-    _vel_target.z = MAX(0.0, _vel_target.z);
-    _vel_desired.z = MAX(0.0, _vel_desired.z);
-    _vel_terrain = MAX(0.0, _vel_terrain);
-    _vel_offset.z = MAX(0.0, _vel_offset.z);
-    _accel_target.z = MAX(0.0, _accel_target.z);
-    _accel_desired.z = MAX(0.0, _accel_desired.z);
-    _accel_terrain = MAX(0.0, _accel_terrain);
-    _accel_offset.z = MAX(0.0, _accel_offset.z);
-}
-
-/// init_z_controller_stopping_point - initialise the position controller to the stopping point with zero velocity and acceleration.
-///     This function should be used when the expected kinematic path assumes a stationary initial condition but does not specify a specific starting position.
-///     The starting position can be retrieved by getting the position target using get_pos_target_cm() after calling this function.
-void AC_PosControl::init_z_controller_stopping_point()
-{
-    // Initialise the position controller to the current throttle, position, velocity and acceleration.
-    init_z_controller();
-
-    get_stopping_point_z_cm(_pos_desired.z);
-    _pos_target.z = _pos_desired.z + _pos_offset.z;
-    _vel_desired.z = 0.0f;
-    _accel_desired.z = 0.0f;
-}
-
-// relax_z_controller - initialise the position controller to the current position and velocity with decaying acceleration.
-///     This function decays the output acceleration by 95% every half second to achieve a smooth transition to zero requested acceleration.
-void AC_PosControl::relax_z_controller(float throttle_setting)
-{
-    // Initialise the position controller to the current position, velocity and acceleration.
-    init_z_controller();
-
-    // init_z_controller has set the accel PID I term to generate the current throttle set point
-    // Use relax_integrator to decay the throttle set point to throttle_setting
-    _pid_accel_z.relax_integrator((throttle_setting - _motors.get_throttle_hover()) * 1000.0f, _dt, POSCONTROL_RELAX_TC);
-}
-
-/// init_z_controller - initialise the position controller to the current position, velocity, acceleration and attitude.
-///     This function is the default initialisation for any position control that provides position, velocity and acceleration.
-///     This function is private and contains all the shared z axis initialisation functions
-void AC_PosControl::init_z_controller()
-{
-    // initialise terrain targets and offsets to zero
-    init_terrain();
-
-    // initialise offsets to target offsets and ensure offset targets are zero if they have not been updated.
-    init_offsets_z();
-
-    _pos_target.z = _inav.get_position_z_up_cm();
-    _pos_desired.z = _pos_target.z - _pos_offset.z;
-
-    _vel_target.z = _inav.get_velocity_z_up_cms();
-    _vel_desired.z = _vel_target.z - _vel_offset.z;
-
-    // Reset I term of velocity PID
-    _pid_vel_z.reset_filter();
-    _pid_vel_z.set_integrator(0.0f);
-
-    _accel_target.z = constrain_float(get_z_accel_cmss(), -_accel_max_z_cmss, _accel_max_z_cmss);
-    _accel_desired.z = _accel_target.z - (_accel_offset.z + _accel_terrain);
-    _pid_accel_z.reset_filter();
-
-    // Set accel PID I term based on the current throttle
-    // Remove the expected P term due to _accel_desired.z being constrained to _accel_max_z_cmss
-    // Remove the expected FF term due to non-zero _accel_target.z
-    _pid_accel_z.set_integrator((_attitude_control.get_throttle_in() - _motors.get_throttle_hover()) * 1000.0f
-        - _pid_accel_z.kP() * (_accel_target.z - get_z_accel_cmss())
-        - _pid_accel_z.ff() * _accel_target.z);
-
-    // initialise ekf z reset handler
-    init_ekf_z_reset();
-
-    // initialise z_controller time out
-    _last_update_z_ticks = AP::scheduler().ticks32();
-}
-
-/// input_accel_z - calculate a jerk limited path from the current position, velocity and acceleration to an input acceleration.
-///     The function takes the current position, velocity, and acceleration and calculates the required jerk limited adjustment to the acceleration for the next time dt.
-void AC_PosControl::input_accel_z(float accel)
-{
-    // calculated increased maximum jerk if over speed
-    float jerk_max_z_cmsss = _jerk_max_z_cmsss * calculate_overspeed_gain();
-
-    // adjust desired alt if motors have not hit their limits
-    update_pos_vel_accel(_pos_desired.z, _vel_desired.z, _accel_desired.z, _dt, _limit_vector.z, _p_pos_z.get_error(), _pid_vel_z.get_error());
-
-    shape_accel(accel, _accel_desired.z, jerk_max_z_cmsss, _dt);
-}
-
-/// input_accel_z - calculate a jerk limited path from the current position, velocity and acceleration to an input acceleration.
-///     The function takes the current position, velocity, and acceleration and calculates the required jerk limited adjustment to the acceleration for the next time dt.
-///     The kinematic path is constrained by the maximum acceleration and jerk set using the function set_max_speed_accel_z.
-///     The parameter limit_output specifies if the velocity and acceleration limits are applied to the sum of commanded and correction values or just correction.
-void AC_PosControl::input_vel_accel_z(float &vel, float accel, bool limit_output)
-{
-    // calculated increased maximum acceleration and jerk if over speed
-    const float overspeed_gain = calculate_overspeed_gain();
-    const float accel_max_z_cmss = _accel_max_z_cmss * overspeed_gain;
-    const float jerk_max_z_cmsss = _jerk_max_z_cmsss * overspeed_gain;
-
-    // adjust desired alt if motors have not hit their limits
-    update_pos_vel_accel(_pos_desired.z, _vel_desired.z, _accel_desired.z, _dt, _limit_vector.z, _p_pos_z.get_error(), _pid_vel_z.get_error());
-
-    shape_vel_accel(vel, accel,
-                    _vel_desired.z, _accel_desired.z,
-                    -constrain_float(accel_max_z_cmss, 0.0f, 750.0f), accel_max_z_cmss,
-                    jerk_max_z_cmsss, _dt, limit_output);
-
-    update_vel_accel(vel, accel, _dt, 0.0, 0.0);
-}
-
-/// set_pos_target_z_from_climb_rate_cm - adjusts target up or down using a commanded climb rate in cm/s
-///     using the default position control kinematic path.
-///     The zero target altitude is varied to follow pos_offset_z
-void AC_PosControl::set_pos_target_z_from_climb_rate_cm(float vel)
-{
-    input_vel_accel_z(vel, 0.0);
-}
-
-/// land_at_climb_rate_cm - adjusts target up or down using a commanded climb rate in cm/s
-///     using the default position control kinematic path.
-///     ignore_descent_limit turns off output saturation handling to aid in landing detection. ignore_descent_limit should be false unless landing.
-void AC_PosControl::land_at_climb_rate_cm(float vel, bool ignore_descent_limit)
-{
-    if (ignore_descent_limit) {
-        // turn off limits in the negative z direction
-        _limit_vector.z = MAX(_limit_vector.z, 0.0f);
-    }
-
-    input_vel_accel_z(vel, 0.0);
-}
-
-/// input_pos_vel_accel_z - calculate a jerk limited path from the current position, velocity and acceleration to an input position velocity and acceleration.
-///     The pos and vel are projected forwards in time based on a time step of dt and acceleration accel.
-///     The function takes the current position, velocity, and acceleration and calculates the required jerk limited adjustment to the acceleration for the next time dt.
-///     The function alters the pos and vel to be the kinematic path based on accel
-///     The parameter limit_output specifies if the velocity and acceleration limits are applied to the sum of commanded and correction values or just correction.
-void AC_PosControl::input_pos_vel_accel_z(float &pos, float &vel, float accel, bool limit_output)
-{
-    // calculated increased maximum acceleration and jerk if over speed
-    const float overspeed_gain = calculate_overspeed_gain();
-    const float accel_max_z_cmss = _accel_max_z_cmss * overspeed_gain;
-    const float jerk_max_z_cmsss = _jerk_max_z_cmsss * overspeed_gain;
-
-    // adjust desired altitude if motors have not hit their limits
-    update_pos_vel_accel(_pos_desired.z, _vel_desired.z, _accel_desired.z, _dt, _limit_vector.z, _p_pos_z.get_error(), _pid_vel_z.get_error());
-
-    shape_pos_vel_accel(pos, vel, accel,
-                        _pos_desired.z, _vel_desired.z, _accel_desired.z,
-                        _vel_max_down_cms, _vel_max_up_cms,
-                        -constrain_float(accel_max_z_cmss, 0.0f, 750.0f), accel_max_z_cmss,
-                        jerk_max_z_cmsss, _dt, limit_output);
-
-    postype_t posp = pos;
-    update_pos_vel_accel(posp, vel, accel, _dt, 0.0, 0.0, 0.0);
-    pos = posp;
-}
-
-/// set_alt_target_with_slew - adjusts target up or down using a commanded altitude in cm
-///     using the default position control kinematic path.
-void AC_PosControl::set_alt_target_with_slew(float pos)
-{
-    float zero = 0;
-    input_pos_vel_accel_z(pos, zero, 0);
-}
-
-/// update_offsets_z - updates the vertical offsets used by terrain following
-void AC_PosControl::update_offsets_z()
-{
-    // check for offset target timeout
-    uint32_t now_ms = AP_HAL::millis();
-    if (now_ms - _posvelaccel_offset_target_z_ms > POSCONTROL_POSVELACCEL_OFFSET_TARGET_TIMEOUT_MS) {
-        _pos_offset_target.z = 0.0;
-        _vel_offset_target.z = 0.0;
-        _accel_offset_target.z = 0.0;
-    }
-
-    // update position, velocity, accel offsets for this iteration
-    postype_t p_offset_z = _pos_offset.z;
-    update_pos_vel_accel(p_offset_z, _vel_offset.z, _accel_offset.z, _dt, MIN(_limit_vector.z, 0.0f), _p_pos_z.get_error(), _pid_vel_z.get_error());
-    _pos_offset.z = p_offset_z;
-
-    // input shape vertical position, velocity and acceleration offsets
-    shape_pos_vel_accel(_pos_offset_target.z, _vel_offset_target.z, _accel_offset_target.z,
-        _pos_offset.z, _vel_offset.z, _accel_offset.z,
-        get_max_speed_down_cms(), get_max_speed_up_cms(),
-        -get_max_accel_z_cmss(), get_max_accel_z_cmss(),
-        _jerk_max_z_cmsss, _dt, false);
-
-    p_offset_z = _pos_offset_target.z;
-    update_pos_vel_accel(p_offset_z, _vel_offset_target.z, _accel_offset_target.z, _dt, 0.0, 0.0, 0.0);
-    _pos_offset_target.z = p_offset_z;
-}
-
-// is_active_z - returns true if the z position controller has been run in the previous loop
-bool AC_PosControl::is_active_z() const
-{
-    const uint32_t dt_ticks = AP::scheduler().ticks32() - _last_update_z_ticks;
-    return dt_ticks <= 1;
-}
-
-
-
- ///~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~DIY New~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-DIYWrench get_DIYwrench(float test_msg_1, float test_msg_2)  //记得修改这里的参数后要在.h文件中也修改一下
-{
-    
-// 示例力和力矩数据，你可以根据实际情况进行修改
-Vector3f force(test_msg_1, test_msg_2, 3.0f); // 假设的力值
-
-Vector3f torque(4.0f, 5.0f, 6.0f); // 假设的力矩值
-  
-// 返回 DIYWrench 对象
-return DIYWrench(force, torque);
-}
-
-DIYWrench current_DIYwrench; 
-
-DIYWrench get_current_DIYwrench(){
-     return current_DIYwrench;
-}
-///~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~DIY End~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-float AC_PosControl::pos_desired_x_set_update(float x_final,float max_pos_x, float rate, float frequency) //"x_final" is the final desired height, "rate" is the incresing height per second
-{   
-    //x_final为设置无人机最终期望NEU X 坐标（cm）
-    //max_pos_x 为最大 X 位移限制（cm）
-    //_pos_set_x为平滑后的期望位置（cm）
-    static bool initialized = false; // 标志是否已初始化，静态变量只会初始化一次
-    static float _pos_set_x = 0.0f;           // static 局部变量，值只初始化一次
-    static float _t = 0.0f;
-    // 设置时间步长
-    float _dt_ = 1.0f/frequency;
-    // 更新时间
-    _t += 1.0f/frequency;
-
-    if (!initialized) {
-        _pos_set_x = 0.0f;        // 只在第一次调用时初始化
-        initialized = true;
-    }                                
-       // **平滑更新位置**
-    // **指数衰减方式平滑逼近**
-    _pos_set_x = x_final - (x_final - _pos_set_x) * expf(-rate * _dt_);
-
-      // **添加位移限制**
-    if (_pos_set_x > max_pos_x) {
-        _pos_set_x = max_pos_x;  // 限制上界
-    }
-     if (_pos_set_x < -max_pos_x) {
-        _pos_set_x = -max_pos_x;  // 限制下界
-    }
-  return _pos_set_x;
-}
-
-float AC_PosControl::pos_desired_y_set_update(float y_final,float max_pos_y, float rate, float frequency) //"x_final" is the final desired height, "rate" is the incresing height per second
-{   
-    //y_final为设置无人机最终期望NEU Y 坐标（cm）
-    //max_pos_y 为最大 Y 位移限制（cm）
-    //_pos_set_y为平滑后的期望位置（cm）
-    static bool initialized = false; // 标志是否已初始化，静态变量只会初始化一次
-    static float _pos_set_y = 0.0f;           // static 局部变量，值只初始化一次
-    static float _t = 0.0f;
-    // 设置时间步长
-    float _dt_ = 1.0f/frequency;
-    // 更新时间
-    _t += 1.0f/frequency;
-
-    if (!initialized) {
-        _pos_set_y = 0.0f;        // 只在第一次调用时初始化
-        initialized = true;
-    }                                
-      // **平滑更新位置**
-   // **指数衰减方式平滑逼近**
-    _pos_set_y = y_final - (y_final - _pos_set_y) * expf(-rate * _dt_);
-     // **添加位移限制**
-    if (_pos_set_y > max_pos_y) {
-        _pos_set_y = max_pos_y;  // 限制上界
-    }
-     if (_pos_set_y < -max_pos_y) {
-        _pos_set_y = -max_pos_y;  // 限制下界
-    }
-  return _pos_set_y;
-}
-
-float AC_PosControl::pos_desired_z_set_update(float z_final,float max_alt, float rate, float frequency) //"z_final" is the final desired height, "rate" 是指数衰减率,越小越慢
-{  //z_final为设置无人机最终期望NEU高度（cm）
-    //max_alt 为最大高度限制（cm）
-    //_pos_set_z为平滑后的期望NEU高度（cm）
-    static bool initialized = false; // 标志是否已初始化，静态变量只会初始化一次
-    static float _pos_set_z = 0.0f;           // static 局部变量，值只初始化一次
-    static float _t = 0.0f;
-    // 设置时间步长
-    float _dt_ = 1.0f/frequency;
-    // 更新时间
-    _t += 1.0f/frequency;
-
-    if (!initialized) {
-        _pos_set_z = 0.0f;        // 只在第一次调用时初始化
-        initialized = true;
-    }                                
-     // **添加高度限制**
-    if (z_final > max_alt && _t>3.0f) {
-        _pos_set_z = max_alt - (max_alt - _pos_set_z) *  expf(-rate * _dt_);  // 限制最大高度
-    }
-    else if(_t>3.0f) {   // **指数衰减方式平滑逼近**
-        _pos_set_z = z_final - (z_final - _pos_set_z) * expf(-rate * _dt_);
-    }
-  return _pos_set_z;
-}
-
-float AC_PosControl::disturb(float frequency)
-{
-    static float _t = 0.0f;
-    // 更新时间
-    _t += 1.0f/frequency;
-
-    // 计算扰动值
-    float disturbance_value = 0.0f+ 0.0f* sinf(0.5f * _t) + 0.0f* cosf(0.7f * _t);
+    _R = R;
+    _Omega = Omega;
+    _Rc_active = Rc_active; //检查位置控制环是否被调用
+    //更新_Omega_hat斜对称矩阵
+    _Omega_hat.a.x = 0.0f;_Omega_hat.a.y = -_Omega.z;_Omega_hat.a.z = _Omega.y;
+    _Omega_hat.b.x = _Omega.z;_Omega_hat.b.y = 0.0f;_Omega_hat.b.z = -_Omega.x;
+    _Omega_hat.c.x = -_Omega.y;_Omega_hat.c.y = _Omega.x;_Omega_hat.c.z = 0.0f;
  
-    // 返回扰动值
-    return disturbance_value;
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~Neural Networks变量声明和定义~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//设置默认RBF网络中心矩阵 Setting the centers of RBF c=Matrix5*2
+    float _c_1_1 = -1.0f; float _c_1_2 = -0.5f; float _c_1_3 = 0.0f; float _c_1_4 = 0.5f; float _c_1_5 = 1.0f;
+    float _c_2_1 = -10.0f; float _c_2_2 = -5.0f; float _c_2_3 = 0.0f; float _c_2_4 = 5.0f; float _c_2_5 = 10.0f; 
+    //定义 特定方向 第j个 隐藏层对应的RBF网络中心（可以理解为上面RBF网络中心矩阵的第j列）
+    Vector2f _c_x_1, _c_x_2, _c_x_3, _c_x_4, _c_x_5; //x方向
+    _c_x_1.x = _c_1_1; _c_x_1.y = _c_2_1;//第1个隐藏层中心2*1向量
+    _c_x_2.x = _c_1_2; _c_x_2.y = _c_2_2;//第2个隐藏层中心2*1向量
+    _c_x_3.x = _c_1_3; _c_x_3.y = _c_2_3;//第3个隐藏层中心2*1向量
+    _c_x_4.x = _c_1_4; _c_x_4.y = _c_2_4;//第4个隐藏层中心2*1向量
+    _c_x_5.x = _c_1_5; _c_x_5.y = _c_2_5;//第5个隐藏层中心2*1向量
 
+    Vector2f _c_y_1, _c_y_2, _c_y_3, _c_y_4, _c_y_5; //y方向
+    _c_y_1.x = _c_1_1; _c_y_1.y = _c_2_1;//第1个隐藏层中心2*1向量
+    _c_y_2.x = _c_1_2; _c_y_2.y = _c_2_2;//第2个隐藏层中心2*1向量
+    _c_y_3.x = _c_1_3; _c_y_3.y = _c_2_3;//第3个隐藏层中心2*1向量
+    _c_y_4.x = _c_1_4; _c_y_4.y = _c_2_4;//第4个隐藏层中心2*1向量
+    _c_y_5.x = _c_1_5; _c_y_5.y = _c_2_5;//第5个隐藏层中心2*1向量
+
+    Vector2f _c_z_1, _c_z_2, _c_z_3, _c_z_4, _c_z_5; //z方向
+    _c_z_1.x = _c_1_1; _c_z_1.y = -6.0f;//第1个隐藏层中心2*1向量
+    _c_z_2.x = _c_1_2; _c_z_2.y = -3.0f;//第2个隐藏层中心2*1向量
+    _c_z_3.x = _c_1_3; _c_z_3.y = 0.0f;//第3个隐藏层中心2*1向量
+    _c_z_4.x = _c_1_4; _c_z_4.y = 3.0f;//第4个隐藏层中心2*1向量
+    _c_z_5.x = _c_1_5; _c_z_5.y = 6.0f;//第5个隐藏层中心2*1向量
+
+    //设置RBF网络的宽度 Setting the width of the RBF network 注意！！：宽度越大约平滑，太小会发散
+    float _b_x = 1.0f;   
+    float _b_y = 1.0f;  
+    float _b_z = 3.0f;
+    
+    // reset input filter to value received //无人机重启pdnn姿态控制时的初始化
+    if (_reset) { //初始化逻辑
+        _reset = false;
+        
+        _R_c = R_c; //更新当前循环的_R_c
+        
+        //旋转矩阵误差_e_R初始化
+        _e_R_hat = (_R_c.transposed() * _R - _R.transposed() * _R_c) * 0.5f; //计算旋转矩阵误差的斜对称矩阵, 注意要把0.5f放在Matrix3f后面，因为函数重载的格式要求
+        _e_R.x = -_e_R_hat.b.z; //斜对称矩阵.V逆运算，对_e_R进行赋值得到旋转矩阵误差_e_R，注意是一个Vector3f
+        _e_R.y = _e_R_hat.a.z;
+        _e_R.z = _e_R_hat.b.x;
+
+        //Psi_R姿态误差标量函数初始化
+        _Psi_R = (1.0f-(_R_c.transposed() * _R).a.x + 1.0f - (_R_c.transposed() * _R).b.y + 1.0f - (_R_c.transposed() * _R).c.z) * 0.5f;
+
+        //防止微分爆炸，初始化微分项
+        _dot_R_c.zero();
+        _dot_Omega_c.zero();
+        _Omega_c.zero();
+
+        //角速度误差_e_Omega初始化
+        //！！！先尝试初始化为Omega，因为前面初始化了微分项！！这里可能需要修改
+        _e_Omega = _Omega;
+
+        //初始化隐藏层输入X
+        _X_x.x = _e_R.x; _X_x.y = _e_Omega.x; //x方向2*1
+        _X_y.x = _e_R.y; _X_y.y = _e_Omega.y; //x方向2*1
+        _X_z.x = _e_R.z; _X_z.y = _e_Omega.z; //x方向2*1
+
+        //初始化隐藏层输出
+        _h_x_1 = _h_x_2 = _h_x_3 = _h_x_4 = _h_x_5 = 0.0f; //x方向
+        _h_y_1 = _h_y_2 = _h_y_3 = _h_y_4 = _h_y_5 = 0.0f; //y方向
+        _h_z_1 = _h_z_2 = _h_z_3 = _h_z_4 = _h_z_5 = 0.0f; //z方向
+
+        //初始化权重更新律
+        _dot_W_x_1 = _dot_W_x_2 = _dot_W_x_3 = _dot_W_x_4 = _dot_W_x_5 = 0.0f;  //x方向
+        _dot_W_y_1 = _dot_W_y_2 = _dot_W_y_3 = _dot_W_y_4 = _dot_W_y_5 = 0.0f;  //y方向
+        _dot_W_z_1 = _dot_W_z_2 = _dot_W_z_3 = _dot_W_z_4 = _dot_W_z_5 = 0.0f;  //z方向
+ 
+        //初始化权重
+        _W_x_1 = _W_x_2 = _W_x_3 = _W_x_4 = _W_x_5 = 0.0f; //x方向
+        _W_y_1 = _W_y_2 = _W_y_3 = _W_y_4 = _W_y_5 = 0.0f; //y方向
+        _W_z_1 = _W_z_2 = _W_z_3 = _W_z_4 = _W_z_5 = 0.0f; //z方向
+
+        //初始化神经网络输出_phi
+        _phi_x = _phi_y = _phi_z = 0.0f;
+
+        //初始化归零控制器输出
+        _pdnn_output.x = 0;
+        _pdnn_output.y = 0;
+        _pdnn_output.z = 0;
+
+
+    } else { //更新循环
+        Matrix3f _R_c_last{_R_c}; //将上一个循环的_R_c存储到一个临时变量 _R_c_last 中，用于后续的微分项计算。这里用到拷贝函数，等价于Matrix3f error_last = _error;
+        
+        //更新当前循环的_R_c
+        _R_c = R_c; 
+
+        //更新当前循环旋转矩阵误差_e_R
+        _e_R_hat = (_R_c.transposed() * _R - _R.transposed() * _R_c) * 0.5f; //计算旋转矩阵误差的斜对称矩阵，注意要把0.5f放在Matrix3f后面，因为函数重载的格式要求
+        _e_R.x = -_e_R_hat.b.z; //斜对称矩阵.V逆运算，对_e_R进行赋值得到旋转矩阵误差_e_R，注意是一个Vector3f
+        _e_R.y = _e_R_hat.a.z;
+        _e_R.z = _e_R_hat.b.x;
+       
+        //更新Psi_R姿态误差标量函数
+        _Psi_R = (1.0f-(_R_c.transposed() * _R).a.x + 1.0f - (_R_c.transposed() * _R).b.y + 1.0f - (_R_c.transposed() * _R).c.z) * 0.5f;
+
+        //计算_R_c微分项，这里暂时不考虑滤波
+        if (is_positive(dt)) { //检查时间步长是否有效
+            _dot_R_c = (_R_c - _R_c_last) / dt;  //理论上应该可以实现逐元素求导（考虑进行正交化或者转化为四元数后归一化！！！）
+        }
+        
+        Vector3f _Omega_c_last{_Omega_c}; //将上一个循环的_Omega_c存储到一个临时变量 _Omegac_c_last 中
+
+        //更新当前循环的期望角速度_Omega_c
+        _Omega_c_hat = _R_c.transposed() * _dot_R_c;
+        _Omega_c.x = -_Omega_c_hat.b.z; //斜对称矩阵.V逆运算
+        _Omega_c.y = _Omega_c_hat.a.z;
+        _Omega_c.z = _Omega_c_hat.b.x;
+    
+        //更新当前循环角速度误差_e_Omega ！！考虑加上滤波！！！！（暂时没加）
+        _e_Omega = _Omega - _R.transposed() * _R_c * _Omega_c;
+        //_e_Omega = _Omega; //暂时第二项设置为0 
+
+        //计算_Omega_c微分项，这里进行了滤波来消除微分爆炸（重要）
+        if (is_positive(dt)) { //检查时间步长是否有效
+            const Vector3f dot_Omega_c{(_Omega_c - _Omega_c_last) / dt}; //_error - error_last：计算当前误差与上一时刻误差之间的差，表示误差的变化量。计算误差变化量除以时间步长 dt，得到误差变化的速率，即微分项。
+            _dot_Omega_c += (dot_Omega_c - _dot_Omega_c) * get_filt_D_alpha(dt);
+            //_dot_Omega_c = (_Omega_c - _Omega_c_last) / dt;  //理论上应该可以实现逐元素求导，这里是不滤波的代码
+        }
+
+        //update I term 更新积分项
+        //void AC_PDNN_3D::update_i(float dt, float _ki, float _c1, float _kimax, bool limit)
+        update_i(dt, 1.0f, 100.0f, 200.0f, true); //尽量小，姿态控制要求实时性
+
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~神经网络NN~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        
+        if (_Rc_active) {       //只在takeoffmode启用，Rc被调用时开始输入
+        //定义隐藏层输入X
+        _X_x.x = _e_R.x; _X_x.y = _e_Omega.x; //x方向2*1
+        _X_y.x = _e_R.y; _X_y.y = _e_Omega.y; //y方向2*1
+        _X_z.x = _e_R.z; _X_z.y = _e_Omega.z; //z方向2*1 
+
+        //计算隐藏层输出
+        float L_x_1 = (_X_x-_c_x_1).length(); //存储欧式距离
+        _h_x_1 = expf(-L_x_1*L_x_1/(2*_b_x*_b_x));//x方向第1个隐藏层输出
+        float L_x_2 = (_X_x-_c_x_2).length(); //存储欧式距离
+        _h_x_2 = expf(-L_x_2*L_x_2/(2*_b_x*_b_x));//x方向第2个隐藏层输出
+        float L_x_3 = (_X_x-_c_x_3).length(); //存储欧式距离
+        _h_x_3 = expf(-L_x_3*L_x_3/(2*_b_x*_b_x));//x方向第3个隐藏层输出
+        float L_x_4 = (_X_x-_c_x_4).length(); //存储欧式距离
+        _h_x_4 = expf(-L_x_4*L_x_4/(2*_b_x*_b_x));//x方向第4个隐藏层输出
+        float L_x_5 = (_X_x-_c_x_5).length(); //存储欧式距离
+        _h_x_5 = expf(-L_x_5*L_x_5/(2*_b_x*_b_x));//x方向第5个隐藏层输出
+
+        float L_y_1 = (_X_y-_c_y_1).length(); //存储欧式距离
+        _h_y_1 = expf(-L_y_1*L_y_1/(2*_b_y*_b_y));//y方向第1个隐藏层输出
+        float L_y_2 = (_X_y-_c_y_2).length(); //存储欧式距离
+        _h_y_2 = expf(-L_y_2*L_y_2/(2*_b_y*_b_y));//y方向第2个隐藏层输出
+        float L_y_3 = (_X_y-_c_y_3).length(); //存储欧式距离
+        _h_y_3 = expf(-L_y_3*L_y_3/(2*_b_y*_b_y));//y方向第3个隐藏层输出
+        float L_y_4 = (_X_y-_c_y_4).length(); //存储欧式距离
+        _h_y_4 = expf(-L_y_4*L_y_4/(2*_b_y*_b_y));//y方向第4个隐藏层输出
+        float L_y_5 = (_X_y-_c_y_5).length(); //存储欧式距离
+        _h_y_5 = expf(-L_y_5*L_y_5/(2*_b_y*_b_y));//y方向第5个隐藏层输出
+
+        float L_z_1 = (_X_z-_c_z_1).length(); //存储欧式距离
+        _h_z_1 = expf(-L_z_1*L_z_1/(2*_b_z*_b_z));//z方向第1个隐藏层输出
+        float L_z_2 = (_X_z-_c_z_2).length(); //存储欧式距离
+        _h_z_2 = expf(-L_z_2*L_z_2/(2*3.0f*3.0f));//z方向第2个隐藏层输出
+        float L_z_3 = (_X_z-_c_z_3).length(); //存储欧式距离
+        _h_z_3 = expf(-L_z_3*L_z_3/(2*3.0f*3.0f));//z方向第3个隐藏层输出
+        float L_z_4 = (_X_z-_c_z_4).length(); //存储欧式距离
+        _h_z_4 = expf(-L_z_4*L_z_4/(2*3.0f*3.0f));//z方向第4个隐藏层输出
+        float L_z_5 = (_X_z-_c_z_5).length(); //存储欧式距离
+        _h_z_5 = expf(-L_z_5*L_z_5/(2*_b_z*_b_z));//z方向第5个隐藏层输出
+
+        //===================== 权重更新律（含死区 + 投影约束）=====================
+// —— 学习抑制与界约束参数（与 S-Function 保持一致）——
+const float c_R  = 0.6f;       // 复合误差系数
+const float zeta = 0.01f;    // 死区阈值：‖[e_R; e_Ω]‖ <= zeta → 停止学习
+const float Wmax = 500.0f;     // 权重范数上限（球半径）
+
+//——— X 轴 ———
+{
+    // 1) 名义律 dW_nom = gamma * (e_Ω + c_R e_R) * h
+    const float _gamma_x = 20.0f;
+    const float z_x = _e_Omega.x + c_R * _e_R.x;
+
+    float dW_nom_x1 = _gamma_x * z_x * _h_x_1;
+    float dW_nom_x2 = _gamma_x * z_x * _h_x_2;
+    float dW_nom_x3 = _gamma_x * z_x * _h_x_3;
+    float dW_nom_x4 = _gamma_x * z_x * _h_x_4;
+    float dW_nom_x5 = _gamma_x * z_x * _h_x_5;
+
+    // 2) 死区：‖[e_R; e_Ω]‖ ≤ zeta → dW = 0
+    const Vector2f x_R(_e_R.x, _e_Omega.x);
+    const float xR_norm = x_R.length();
+
+    float dW_x1=0, dW_x2=0, dW_x3=0, dW_x4=0, dW_x5=0;
+    if (xR_norm <= zeta) {
+        dW_x1 = dW_x2 = dW_x3 = dW_x4 = dW_x5 = 0.0f;
+    } else {
+        // 3) 投影：在界内或边界且不向外 ⇒ 允许名义律；否则正交投影
+        const float Wnorm_x = sqrtf(_W_x_1*_W_x_1 + _W_x_2*_W_x_2 + _W_x_3*_W_x_3 + _W_x_4*_W_x_4 + _W_x_5*_W_x_5);
+        const float radial_x = dW_nom_x1*_W_x_1 + dW_nom_x2*_W_x_2 + dW_nom_x3*_W_x_3 + dW_nom_x4*_W_x_4 + dW_nom_x5*_W_x_5;
+
+        const bool W_in_x = (Wnorm_x < Wmax);
+        const bool W_eq_x = (!(Wnorm_x < Wmax) && !(Wnorm_x > Wmax));  // 等价于 Wnorm_x == Wmax，规避浮点 ==
+        const bool allow_nominal_x = W_in_x || (W_eq_x && (radial_x <= 0.0f));
+
+        if (allow_nominal_x) {
+            dW_x1 = dW_nom_x1; dW_x2 = dW_nom_x2; dW_x3 = dW_nom_x3; dW_x4 = dW_nom_x4; dW_x5 = dW_nom_x5;
+        } else {
+            // 严格投影：dW ← dW_nom - ((dW_nom^T W)/(W^T W)) W   （无 eps）
+            const float denom = (Wnorm_x * Wnorm_x);         // 若要更稳健可改成 fmaxf(denom, 1e-12f)
+            const float alpha = radial_x / denom;
+            dW_x1 = dW_nom_x1 - alpha * _W_x_1;
+            dW_x2 = dW_nom_x2 - alpha * _W_x_2;
+            dW_x3 = dW_nom_x3 - alpha * _W_x_3;
+            dW_x4 = dW_nom_x4 - alpha * _W_x_4;
+            dW_x5 = dW_nom_x5 - alpha * _W_x_5;
+        }
+    }
+
+    // 4) 积分更新
+    if (is_positive(dt)) {
+        _W_x_1 += dW_x1 * dt;
+        _W_x_2 += dW_x2 * dt;
+        _W_x_3 += dW_x3 * dt;
+        _W_x_4 += dW_x4 * dt;
+        _W_x_5 += dW_x5 * dt;
+    }
+}
+
+//——— Y 轴 ———
+{
+    const float _gamma_y = 20.0f;
+    const float z_y = _e_Omega.y + c_R * _e_R.y;
+
+    float dW_nom_y1 = _gamma_y * z_y * _h_y_1;
+    float dW_nom_y2 = _gamma_y * z_y * _h_y_2;
+    float dW_nom_y3 = _gamma_y * z_y * _h_y_3;
+    float dW_nom_y4 = _gamma_y * z_y * _h_y_4;
+    float dW_nom_y5 = _gamma_y * z_y * _h_y_5;
+
+    const Vector2f y_R(_e_R.y, _e_Omega.y);
+    const float yR_norm = y_R.length();
+
+    float dW_y1=0, dW_y2=0, dW_y3=0, dW_y4=0, dW_y5=0;
+    if (yR_norm <= zeta) {
+        dW_y1 = dW_y2 = dW_y3 = dW_y4 = dW_y5 = 0.0f;
+    } else {
+        const float Wnorm_y = sqrtf(_W_y_1*_W_y_1 + _W_y_2*_W_y_2 + _W_y_3*_W_y_3 + _W_y_4*_W_y_4 + _W_y_5*_W_y_5);
+        const float radial_y = dW_nom_y1*_W_y_1 + dW_nom_y2*_W_y_2 + dW_nom_y3*_W_y_3 + dW_nom_y4*_W_y_4 + dW_nom_y5*_W_y_5;
+
+        const bool W_in_y = (Wnorm_y < Wmax);
+        const bool W_eq_y = (!(Wnorm_y < Wmax) && !(Wnorm_y > Wmax));
+        const bool allow_nominal_y = W_in_y || (W_eq_y && (radial_y <= 0.0f));
+
+        if (allow_nominal_y) {
+            dW_y1 = dW_nom_y1; dW_y2 = dW_nom_y2; dW_y3 = dW_nom_y3; dW_y4 = dW_nom_y4; dW_y5 = dW_nom_y5;
+        } else {
+            const float denom = (Wnorm_y * Wnorm_y);
+            const float alpha = radial_y / denom;
+            dW_y1 = dW_nom_y1 - alpha * _W_y_1;
+            dW_y2 = dW_nom_y2 - alpha * _W_y_2;
+            dW_y3 = dW_nom_y3 - alpha * _W_y_3;
+            dW_y4 = dW_nom_y4 - alpha * _W_y_4;
+            dW_y5 = dW_nom_y5 - alpha * _W_y_5;
+        }
+    }
+
+    if (is_positive(dt)) {
+        _W_y_1 += dW_y1 * dt;
+        _W_y_2 += dW_y2 * dt;
+        _W_y_3 += dW_y3 * dt;
+        _W_y_4 += dW_y4 * dt;
+        _W_y_5 += dW_y5 * dt;
+    }
 }
 
 
-/// update_z_controller - runs the vertical position controller correcting position, velocity and acceleration errors.
-///     Position and velocity errors are converted to velocity and acceleration targets using PID objects
-///     Desired velocity and accelerations are added to these corrections as they are calculated
-///     Kinematically consistent target position and desired velocity and accelerations should be provided before calling this function
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~垂直位置控制器更新~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~垂直位置控制器更新~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~update_z_controller~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-void AC_PosControl::update_z_controller()
+//——— Z 轴 ———
 {
-    // check for ekf z-axis position reset
-    handle_ekf_z_reset(); //检查 EKF z 轴位置重置
+    const float _gamma_z = 10.0f;
+    const float z_z = _e_Omega.z + c_R * _e_R.z;
 
-    // Check for z_controller time out
-    if (!is_active_z()) {  //如果垂直位置控制不活跃
-        init_z_controller(); //重新初始化垂直控制器
-        if (has_good_timing()) {  //检查时间同步
-            // call internal error because initialisation has not been done
-            //INTERNAL_ERROR(AP_InternalError::error_t::flow_of_control); ////逻辑：如果不活跃，且初始化后，时间同步正常，则报错有内部错误
+    float dW_nom_z1 = _gamma_z * z_z * _h_z_1;
+    float dW_nom_z2 = _gamma_z * z_z * _h_z_2;
+    float dW_nom_z3 = _gamma_z * z_z * _h_z_3;
+    float dW_nom_z4 = _gamma_z * z_z * _h_z_4;
+    float dW_nom_z5 = _gamma_z * z_z * _h_z_5;
+
+    const Vector2f z_R(_e_R.z, _e_Omega.z);
+    const float zR_norm = z_R.length();
+
+    float dW_z1=0, dW_z2=0, dW_z3=0, dW_z4=0, dW_z5=0;
+    if (zR_norm <= zeta) {
+        dW_z1 = dW_z2 = dW_z3 = dW_z4 = dW_z5 = 0.0f;
+    } else {
+        const float Wnorm_z = sqrtf(_W_z_1*_W_z_1 + _W_z_2*_W_z_2 + _W_z_3*_W_z_3 + _W_z_4*_W_z_4 + _W_z_5*_W_z_5);
+        const float radial_z = dW_nom_z1*_W_z_1 + dW_nom_z2*_W_z_2 + dW_nom_z3*_W_z_3 + dW_nom_z4*_W_z_4 + dW_nom_z5*_W_z_5;
+
+        const bool W_in_z = (Wnorm_z < Wmax);
+        const bool W_eq_z = (!(Wnorm_z < Wmax) && !(Wnorm_z > Wmax));
+        const bool allow_nominal_z = W_in_z || (W_eq_z && (radial_z <= 0.0f));
+
+        if (allow_nominal_z) {
+            dW_z1 = dW_nom_z1; dW_z2 = dW_nom_z2; dW_z3 = dW_nom_z3; dW_z4 = dW_nom_z4; dW_z5 = dW_nom_z5;
+        } else {
+            const float denom = (Wnorm_z * Wnorm_z);
+            const float alpha = radial_z / denom;
+            dW_z1 = dW_nom_z1 - alpha * _W_z_1;
+            dW_z2 = dW_nom_z2 - alpha * _W_z_2;
+            dW_z3 = dW_nom_z3 - alpha * _W_z_3;
+            dW_z4 = dW_nom_z4 - alpha * _W_z_4;
+            dW_z5 = dW_nom_z5 - alpha * _W_z_5;
         }
     }
-    _last_update_z_ticks = AP::scheduler().ticks32(); ////更新最后一次控制器调用时间，ticks32() 是一个方法，返回系统当前的32位时间戳，其返回值用于计算时间间隔dt_ticks
 
-    // update the position, velocity and acceleration offsets
-    update_offsets_z(); //更新偏移量
-    update_terrain();  //更新地形高度
-    _pos_target.z = _pos_desired.z + _pos_offset.z + _pos_terrain;
+    if (is_positive(dt)) {
+        _W_z_1 += dW_z1 * dt;
+        _W_z_2 += dW_z2 * dt;
+        _W_z_3 += dW_z3 * dt;
+        _W_z_4 += dW_z4 * dt;
+        _W_z_5 += dW_z5 * dt;
+    }
+}
 
-    // calculate the target velocity correction
-    float pos_target_zf = _pos_target.z; //赋值给局部变量
+//===================== 结束：权重更新律（死区 + 投影）=====================
 
-    _vel_target.z = _p_pos_z.update_all(pos_target_zf, _inav.get_position_z_up_cm()); //P控制器，得到目标速度_vel_target.z
-    _vel_target.z *= AP::ahrs().getControlScaleZ(); //光流补偿缩放因子
 
-    _pos_target.z = pos_target_zf; //局部变量的赋值还原
-    _pos_desired.z = _pos_target.z - (_pos_offset.z + _pos_terrain); //重新计算期望位置
+         //计算神经网络输出_phi = W' * h
+        _phi_x = _W_x_1 * _h_x_1 + _W_x_2 * _h_x_2 + _W_x_3 * _h_x_3 + _W_x_4 * _h_x_4 + _W_x_5 * _h_x_5; //x方向神经网络输出
+        _phi_y = _W_y_1 * _h_y_1 + _W_y_2 * _h_y_2 + _W_y_3 * _h_y_3 + _W_y_4 * _h_y_4 + _W_y_5 * _h_y_5; //y方向神经网络输出
+        _phi_z = _W_z_1 * _h_z_1 + _W_z_2 * _h_z_2 + _W_z_3 * _h_z_3 + _W_z_4 * _h_z_4 + _W_z_5 * _h_z_5; //z方向神经网络输出
+        //(void)_phi_x;
+        //(void)_phi_y;
+        //(void)_phi_z;//暂时标记为未使用，避免报错
+        }
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~END~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~pdnn控制器~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-    //const Vector3f &pos_meas_neu = _inav.get_position_neu_cm();  //通过 `inav` 系统获取无人机在北-东-上（NEU）坐标系中的位置，单位是厘米。mocap中这里考虑替换为mocap位置反馈
-    //Vector3f pos_meas_ned = pos_meas_neu;   
-    //pos_meas_ned.z = -pos_meas_neu.z;                        //转化测量位置为ned
-    //Vector3f _pos_desired_3f;                                //转换数据类型为Vector3f
-    //_pos_desired_3f.x = 0.0f;//pos_desired_x_set_update(_pos_desired.x,400.0f, 1.0f, 400.0f);     //转换数据类型为Vector3f,update函数为平滑轨迹函数
-    //_pos_desired_3f.y = 0.0f;//pos_desired_y_set_update(_pos_desired.y,400.0f, 1.0f, 400.0f);     //转换数据类型为Vector3f,update函数为平滑轨迹函数                
-    //_pos_desired_3f.z = -pos_desired_z_set_update(_pos_desired.z,100.0f, 0.5f, 400.0f);   //转换数据类型为Vector3f，并可以将原本的NEU期望坐标，改变正负转换为NED。这里给出的目标高度需要平滑
-    //Vector3f _acc_desired_3f;
-    //_acc_desired_3f.x = 0.0f;
-    //_acc_desired_3f.y = 0.0f;
-    //_acc_desired_3f.z = 0.0f;
+        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~END~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    //_U_x = _pdnn_pos.update_all(_pos_desired_3f, pos_meas_ned,_acc_desired_3f, _dt); //调用pdnn控制器循环
-    //_U_x.y += disturb(400.0f); //加一个持续激励的扰动
-
-    _R_body_to_ned_meas = _ahrs.get_rotation_body_to_ned(); //获取旋转矩阵测量值 body to NED，并传递给_R_body_to_ned_meas
-    //_R_body_to_neu_meas = _R_body_to_ned_meas;
-    //_R_body_to_neu_meas.a.z = _R_body_to_ned_meas.a.z; // 转换为旋转矩阵测量值 NEUbody to NEUearth 
-    //_R_body_to_neu_meas.b.z = _R_body_to_ned_meas.b.z; //注意这里容易有误区，ardupilot自带的_ahrs.get_rotation_body_to_ned()是将NEDbody转换到NEDearth
-    //_R_body_to_neu_meas.c.z = _R_body_to_ned_meas.c.z;  //所以，这里只要无人机和大地我们都采用NEU，这种情况下旋转矩阵和都是NED的情况下是不变的
-    
-    //float fd;
-    //fd = -_U_x.dot(_R_body_to_ned_meas.colz());                  //colz是拷贝取值，fd=U_x * Re3
+    }
    
-   static float fd_nor = 0.05f;                                         // fd_nor = fd/f_max，除以预设的无人机最大推力进行归一化
-
-   static float _t = 0.0f;
-   if (_event_interlock){
    
-    // 更新时间
-    _t += 1.0f / 400.0f;
+    _pdnn_output_R.x = -_e_R.x * _kR; //计算P项输出
+    _pdnn_output_R.y = -_e_R.y * _kR;
+    _pdnn_output_R.z = -_e_R.z * _kR_z;
 
-    // 在 n 秒内从 X.XX 线性上升到 fd_target
-    float ramp_time = 0.1f;          // n 秒内达到目标，可调
-    float fd_target = 0.3f;
-
-    if (_t < ramp_time)
-        fd_nor = fd_target * (_t / ramp_time);
-    else
-        fd_nor = fd_target;
-   }
-   else
-   {
-     fd_nor = 0.05f;
-   }
-
-    float test_msg_1 = -pos_desired_z_set_update(_pos_desired.z,200.0f, 0.5f, 400.0f);
-    //float test_msg_2 = _pdnn_pos.get_phi().x; 
-    current_DIYwrench = get_DIYwrench(test_msg_1, test_msg_1); //用于ROS2推力话题 
-    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~END~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-    // add feed forward component //目标速度，添加一些前馈
-    _vel_target.z += _vel_desired.z + _vel_offset.z + _vel_terrain;
-
-    // Velocity Controller //速度控制器
-
-    const float curr_vel_z = _inav.get_velocity_z_up_cms(); //获取当前 z 轴方向的速度
-    _accel_target.z = _pid_vel_z.update_all(_vel_target.z, curr_vel_z, _dt, _motors.limit.throttle_lower, _motors.limit.throttle_upper); //目标加速度PID控制
-    _accel_target.z *= AP::ahrs().getControlScaleZ(); //缩放因子
-
-    // add feed forward component //加入一些加速度前馈项
-    _accel_target.z += _accel_desired.z + _accel_offset.z + _accel_terrain;
-
-    // Acceleration Controller //加速度控制器
-
-    // Calculate vertical acceleration
-    const float z_accel_meas = get_z_accel_cmss(); //获取当前垂直加速度
-
-    // ensure imax is always large enough to overpower hover throttle
-    if (_motors.get_throttle_hover() * 1000.0f > _pid_accel_z.imax()) { //确保积分项限制的合理性
-        _pid_accel_z.set_imax(_motors.get_throttle_hover() * 1000.0f);
-    }
-    float thr_out;
-    if (_vibe_comp_enabled) {
-        thr_out = get_throttle_with_vibration_override();
-    } else {
-        thr_out = _pid_accel_z.update_all(_accel_target.z, z_accel_meas, _dt, (_motors.limit.throttle_lower || _motors.limit.throttle_upper)) * 0.001f;
-        thr_out += _pid_accel_z.get_ff() * 0.001f;
-    }
-    thr_out += _motors.get_throttle_hover(); //加上悬停推力
-
-    // Actuator commands
-
-    // send throttle to attitude controller with angle boost
-    _attitude_control.set_throttle_out(fd_nor, false, POSCONTROL_THROTTLE_CUTOFF_FREQ_HZ); //将油门指令发送给姿态控制器，第二参数是是否开启角度增益补偿，几何控制取false
-
-    // Check for vertical controller health
-
-    // _speed_down_cms is checked to be non-zero when set
-    float error_ratio = _pid_vel_z.get_error() / _vel_max_down_cms; //垂直速度误差比率计算
-    _vel_z_control_ratio += _dt * 0.1f * (0.5 - error_ratio);     //更新垂直速度控制比例
-    _vel_z_control_ratio = constrain_float(_vel_z_control_ratio, 0.0f, 2.0f);
-
-    // set vertical component of the limit vector //油门的限制状态
-    if (_motors.limit.throttle_upper) {
-        _limit_vector.z = 1.0f; //当油门达到上限时，将垂直方向的限制向量设置为 `1.0`，这表示上升推力受限。
-    } else if (_motors.limit.throttle_lower) {
-        _limit_vector.z = -1.0f; //当油门达到下限时，将垂直方向的限制向量设置为 `-1.0`，这表示下降推力受限。
-    } else {
-        _limit_vector.z = 0.0f; //如果油门既不受上限也不受下限的限制，则限制向量为 `0.0`，表示没有垂直方向上的限制。
-    }
-
-     //current_DIYwrench = get_DIYwrench(_U_x); //用于ROS2推力话题
-    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~写入log~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-     Write_PSCN(_attitude_control.get_phi().x, _attitude_control.get_phi().y, _attitude_control.get_phi().z, //发送给姿态控制,
-                  _attitude_control.get_J().x, _attitude_control.get_J().y, _attitude_control.get_J().z,
-                  _attitude_control.get_e_R().x, _attitude_control.get_e_R().y, _attitude_control.get_e_R().z);
-
-    Write_PSCE(_attitude_control.get_e_Omega().x, _attitude_control.get_e_Omega().y, _attitude_control.get_e_Omega().z,
-                   _attitude_control.get_Psi_R(), _attitude_control.get_Md().x, _attitude_control.get_Md().y,
-                   _attitude_control.get_Md().z, _accel_target.y, _attitude_control.get_Psi_R());
+    _pdnn_output_Omega.x = -_e_Omega.x * _kOmega; //计算D项输出
+    _pdnn_output_Omega.y = -_e_Omega.y * _kOmega;
+    _pdnn_output_Omega.z = -_e_Omega.z * _kOmega_z;
     
-    Write_PSCD(_attitude_control.get_phi().x, _attitude_control.get_phi().y, _attitude_control.get_phi().z, //发送给姿态控制,
-                  _attitude_control.get_J().x, _attitude_control.get_J().y, _attitude_control.get_J().z,
-                  _attitude_control.get_e_R().x, _attitude_control.get_e_R().x, _attitude_control.get_e_R().x);
-    //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~END~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-}
+    //计算几何控制项，这里惯性张量
+    Matrix3f J;
+    J.a.x=0.01f;J.a.y=0.0f;     J.a.z=0.0f;
+    J.b.x=0.0f;      J.b.y=0.02f;J.b.z=0.0f;
+    J.c.x=0.0f;      J.c.y=0.0f;     J.c.z=0.02f;
+    Matrix3f J_inv;
+    J_inv = J;
+    J_inv.a.x = 1/J.a.x;J_inv.b.y = 1/J.b.y;J_inv.c.z = 1/J.c.z;
+    //额外增广项，以实现UPAS
+    Vector3f Aug;
+    Aug = J_inv * _Omega_hat * J * _Omega;
 
+    _geomrtry_output = _Omega_hat * _R.transposed() * _R_c * _Omega_c  - _R.transposed() * _R_c * _dot_Omega_c;
 
-
-///
-/// Accessors
-///
-
-/// get_lean_angle_max_cd - returns the maximum lean angle the autopilot may request
-float AC_PosControl::get_lean_angle_max_cd() const
-{
-    if (is_positive(_angle_max_override_cd)) { 
-        return _angle_max_override_cd;
-    }
-    if (!is_positive(_lean_angle_max)) {
-        return _attitude_control.lean_angle_max_cd();
-    }
-    return _lean_angle_max * 100.0f;
-}
-
-/// set the desired position, velocity and acceleration targets
-void AC_PosControl::set_pos_vel_accel(const Vector3p& pos, const Vector3f& vel, const Vector3f& accel)
-{
-    _pos_desired = pos;
-    _vel_desired = vel;
-    _accel_desired = accel;
-}
-
-/// set the desired position, velocity and acceleration targets
-void AC_PosControl::set_pos_vel_accel_xy(const Vector2p& pos, const Vector2f& vel, const Vector2f& accel)
-{
-    _pos_desired.xy() = pos;
-    _vel_desired.xy() = vel;
-    _accel_desired.xy() = accel;
-}
-
-// get_lean_angles_to_accel - convert roll, pitch lean target angles to lat/lon frame accelerations in cm/s/s
-Vector3f AC_PosControl::lean_angles_to_accel(const Vector3f& att_target_euler) const
-{
-    // rotate our roll, pitch angles into lat/lon frame
-    const float sin_roll = sinf(att_target_euler.x);
-    const float cos_roll = cosf(att_target_euler.x);
-    const float sin_pitch = sinf(att_target_euler.y);
-    const float cos_pitch = cosf(att_target_euler.y);
-    const float sin_yaw = sinf(att_target_euler.z);
-    const float cos_yaw = cosf(att_target_euler.z);
-
-    return Vector3f{
-        (GRAVITY_MSS * 100.0f) * (-cos_yaw * sin_pitch * cos_roll - sin_yaw * sin_roll) / MAX(cos_roll * cos_pitch, 0.1f),
-        (GRAVITY_MSS * 100.0f) * (-sin_yaw * sin_pitch * cos_roll + cos_yaw * sin_roll) / MAX(cos_roll * cos_pitch, 0.1f),
-        (GRAVITY_MSS * 100.0f)
-    };
-}
-
-/// Terrain
-
-/// set the terrain position, velocity and acceleration in cm, cms and cm/s/s from EKF origin in NE frame
-/// this is used to initiate the offsets when initialise the position controller or do an offset reset
-void AC_PosControl::init_terrain()
-{
-    // set terrain position and target to zero
-    _pos_terrain_target = 0.0;
-    _pos_terrain = 0.0;
-
-    // set velocity offset to zero
-    _vel_terrain = 0.0;
-
-    // set acceleration offset to zero
-    _accel_terrain = 0.0;
-}
-
-// init_pos_terrain_cm - initialises the current terrain altitude and target altitude to pos_offset_terrain_cm
-void AC_PosControl::init_pos_terrain_cm(float pos_terrain_cm)
-{
-    _pos_desired.z -= (pos_terrain_cm - _pos_terrain);
-    _pos_terrain_target = pos_terrain_cm;
-    _pos_terrain = pos_terrain_cm;
-}
-
-
-/// Offsets
-
-/// set the horizontal position, velocity and acceleration offsets in cm, cms and cm/s/s from EKF origin in NE frame
-/// this is used to initiate the offsets when initialise the position controller or do an offset reset
-void AC_PosControl::init_offsets_xy()
-{
-    // check for offset target timeout
-    uint32_t now_ms = AP_HAL::millis();
-    if (now_ms - _posvelaccel_offset_target_xy_ms > POSCONTROL_POSVELACCEL_OFFSET_TARGET_TIMEOUT_MS) {
-        _pos_offset_target.xy().zero();
-        _vel_offset_target.xy().zero();
-        _accel_offset_target.xy().zero();
-    }
-
-    // set position offset to target
-    _pos_offset.xy() = _pos_offset_target.xy();
-
-    // set velocity offset to target
-    _vel_offset.xy() = _vel_offset_target.xy();
-
-    // set acceleration offset to target
-    _accel_offset.xy() = _accel_offset_target.xy();
-}
-
-/// set the horizontal position, velocity and acceleration offsets in cm, cms and cm/s/s from EKF origin in NE frame
-/// this is used to initiate the offsets when initialise the position controller or do an offset reset
-void AC_PosControl::init_offsets_z()
-{
-    // check for offset target timeout
-    uint32_t now_ms = AP_HAL::millis();
-    if (now_ms - _posvelaccel_offset_target_z_ms > POSCONTROL_POSVELACCEL_OFFSET_TARGET_TIMEOUT_MS) {
-        _pos_offset_target.z = 0.0;
-        _vel_offset_target.z = 0.0;
-        _accel_offset_target.z = 0.0;
-    }
-    // set position offset to target
-    _pos_offset.z = _pos_offset_target.z;
-
-    // set velocity offset to target
-    _vel_offset.z = _vel_offset_target.z;
-
-    // set acceleration offset to target
-    _accel_offset.z = _accel_offset_target.z;
-}
-
-#if AP_SCRIPTING_ENABLED
-// add an additional offset to vehicle's target position, velocity and acceleration
-// units are m, m/s and m/s/s in NED frame
-// Z-axis is not currently supported and is ignored
-bool AC_PosControl::set_posvelaccel_offset(const Vector3f &pos_offset_NED, const Vector3f &vel_offset_NED, const Vector3f &accel_offset_NED)
-{
-    set_posvelaccel_offset_target_xy_cm(pos_offset_NED.topostype().xy() * 100.0, vel_offset_NED.xy() * 100.0, accel_offset_NED.xy() * 100.0);
-    set_posvelaccel_offset_target_z_cm(-pos_offset_NED.topostype().z * 100.0, -vel_offset_NED.z * 100, -accel_offset_NED.z * 100.0);
-    return true;
-}
-
-// get position and velocity offset to vehicle's target velocity and acceleration
-// units are m and m/s in NED frame
-bool AC_PosControl::get_posvelaccel_offset(Vector3f &pos_offset_NED, Vector3f &vel_offset_NED, Vector3f &accel_offset_NED)
-{
-    pos_offset_NED.xy() = _pos_offset_target.xy().tofloat() * 0.01;
-    pos_offset_NED.z = -_pos_offset_target.z * 0.01;
-    vel_offset_NED.xy() = _vel_offset_target.xy() * 0.01;
-    vel_offset_NED.z = -_vel_offset_target.z * 0.01;
-    accel_offset_NED.xy() = _accel_offset_target.xy() * 0.01;
-    accel_offset_NED.z = -_accel_offset_target.z * 0.01;
-    return true;
-}
-#endif
-
-/// set the horizontal position, velocity and acceleration offset targets in cm, cms and cm/s/s from EKF origin in NE frame
-/// these must be set every 3 seconds (or less) or they will timeout and return to zero
-void AC_PosControl::set_posvelaccel_offset_target_xy_cm(const Vector2p& pos_offset_target_xy_cm, const Vector2f& vel_offset_target_xy_cms, const Vector2f& accel_offset_target_xy_cmss)
-{
-    // set position offset target
-    _pos_offset_target.xy() = pos_offset_target_xy_cm;
-
-    // set velocity offset target
-    _vel_offset_target.xy() = vel_offset_target_xy_cms;
-
-    // set acceleration offset target
-    _accel_offset_target.xy() = accel_offset_target_xy_cmss;
-
-    // record time of update so we can detect timeouts
-    _posvelaccel_offset_target_xy_ms = AP_HAL::millis();
-}
-
-/// set the vertical position, velocity and acceleration offset targets in cm, cms and cm/s/s from EKF origin in NE frame
-/// these must be set every 3 seconds (or less) or they will timeout and return to zero
-void AC_PosControl::set_posvelaccel_offset_target_z_cm(float pos_offset_target_z_cm, float vel_offset_target_z_cms, const float accel_offset_target_z_cmss)
-{
-    // set position offset target
-    _pos_offset_target.z = pos_offset_target_z_cm;
-
-    // set velocity offset target
-    _vel_offset_target.z = vel_offset_target_z_cms;
-
-    // set acceleration offset target
-    _accel_offset_target.z = accel_offset_target_z_cmss;
-
-    // record time of update so we can detect timeouts
-    _posvelaccel_offset_target_z_ms = AP_HAL::millis();
-}
-
-// returns the NED target acceleration vector for attitude control
-Vector3f AC_PosControl::get_thrust_vector() const
-{
-    Vector3f accel_target = get_accel_target_cmss();
-    accel_target.z = -GRAVITY_MSS * 100.0f;
-    return accel_target;
-}
-
-/// get_stopping_point_xy_cm - calculates stopping point in NEU cm based on current position, velocity, vehicle acceleration
-///    function does not change the z axis
-void AC_PosControl::get_stopping_point_xy_cm(Vector2p &stopping_point) const
-{
-    // todo: we should use the current target position and velocity if we are currently running the position controller
-    stopping_point = _inav.get_position_xy_cm().topostype();
-    stopping_point -= _pos_offset.xy();
-
-    Vector2f curr_vel = _inav.get_velocity_xy_cms();
-    curr_vel -= _vel_offset.xy();
-
-    // calculate current velocity
-    float vel_total = curr_vel.length();
-
-    if (!is_positive(vel_total)) {
-        return;
-    }
+    //(void)_geomrtry_output;
+   if (_Rc_active) {
+    //计算总输出，每个方向上乘以惯性张量
+    _pdnn_output.x = 0.01f * (-_e_R.x * 100.0f - _e_Omega.x * 40.0f - 0.0f * _integrator.x - _geomrtry_output.x - 1.0f *_phi_x + 0.0f*Aug.x); 
+    _pdnn_output.y = 0.01f * (-_e_R.y * 100.0f - _e_Omega.y * 40.0f - 0.0f *_integrator.y - _geomrtry_output.y- 1.0f * _phi_y + 0.0f*Aug.y);
+    _pdnn_output.z = 0.02f * (-_e_R.z * 100.0f - _e_Omega.z * 40.0f - 0.0f *_integrator.z - _geomrtry_output.z - 1.0f *_phi_z + 0.0f*Aug.z); //偏航误差e_R.z很容易就趋近于0，会导致无法满足持续激励假设
     
-    float kP = _p_pos_xy.kP();
-    const float stopping_dist = stopping_distance(constrain_float(vel_total, 0.0, _vel_max_xy_cms), kP, _accel_max_xy_cmss);
-    if (!is_positive(stopping_dist)) {
-        return;
-    }
-
-    // convert the stopping distance into a stopping point using velocity vector
-    const float t = stopping_dist / vel_total;
-    stopping_point += (curr_vel * t).topostype();
+    //_pdnn_output.x = 0.01f * (-_e_R.x * 100.0f - _e_Omega.x * 40.0f - 0.0f * _integrator.x - _geomrtry_output.x - 0.0f *_phi_x + 0.0f*Aug.x); 
+    //_pdnn_output.y = 0.01f * (-_e_R.y * 100.0f - _e_Omega.y * 40.0f - 0.0f *_integrator.y - _geomrtry_output.y- 0.0f * _phi_y + 0.0f*Aug.y);
+    //_pdnn_output.z = 0.02f * (-_e_R.z * 100.0f - _e_Omega.z * 40.0f - 0.0f *_integrator.z - _geomrtry_output.z - 0.0f *_phi_z + 0.0f*Aug.z); //偏航误差e_R.z很容易就趋近于0，会导致无法满足持续激励假设
+   }
+    return _pdnn_output; //返回pdnn控制器输出
 }
 
-/// get_stopping_point_z_cm - calculates stopping point in NEU cm based on current position, velocity, vehicle acceleration
-void AC_PosControl::get_stopping_point_z_cm(postype_t &stopping_point) const
+void AC_PDNN_SO3::update_i(float dt, float _ki, float _c2, float _kimax, bool limit)
 {
-    float curr_pos_z = _inav.get_position_z_up_cm();
-    curr_pos_z -= _pos_offset.z;
+   if (limit){
 
-    float curr_vel_z = _inav.get_velocity_z_up_cms();
-    curr_vel_z -= _vel_offset.z;
+    //Vector3f delta_integrator = (_e_Omega + _e_R * _c2) * dt;
+    Vector3f delta_integrator = (_e_R * _c2) * dt;
+    _integrator += delta_integrator;
+    
+    float _integrator_x = _integrator.x;
+    float _integrator_y = _integrator.y;
+    float _integrator_z = _integrator.z;
+    _integrator_x = constrain_float(_integrator_x, -_kimax, _kimax); //分别在xyz方向上限制积分大小
+    _integrator_y = constrain_float(_integrator_y, -_kimax, _kimax);
+    _integrator_z = constrain_float(_integrator_z, -_kimax, _kimax);
 
-    // avoid divide by zero by using current position if kP is very low or acceleration is zero
-    if (!is_positive(_p_pos_z.kP()) || !is_positive(_accel_max_z_cmss)) {
-        stopping_point = curr_pos_z;
-        return;
-    }
+    _integrator.x = _integrator_x; //把限制后的值重新赋值
+    _integrator.y = _integrator_y;
+    _integrator.z = _integrator_z;
 
-    stopping_point = curr_pos_z + constrain_float(stopping_distance(curr_vel_z, _p_pos_z.kP(), _accel_max_z_cmss), - POSCONTROL_STOPPING_DIST_DOWN_MAX, POSCONTROL_STOPPING_DIST_UP_MAX);
+    _integrator =  _integrator * _ki;
+} else{
+    _integrator.zero();
 }
 
-/// get_bearing_to_target_cd - get bearing to target position in centi-degrees
-int32_t AC_PosControl::get_bearing_to_target_cd() const
+}
+
+
+Vector3f AC_PDNN_SO3::get_R() const
 {
-    return get_bearing_cd(_inav.get_position_xy_cm(), _pos_target.tofloat().xy());
+    return _pdnn_output_R;
 }
 
-
-///
-/// System methods
-///
-
-// get throttle using vibration-resistant calculation (uses feed forward with manually calculated gain)
-float AC_PosControl::get_throttle_with_vibration_override()
+Vector3f AC_PDNN_SO3::get_Omega() const
 {
-    const float thr_per_accelz_cmss = _motors.get_throttle_hover() / (GRAVITY_MSS * 100.0f);
-    // during vibration compensation use feed forward with manually calculated gain
-    // ToDo: clear pid_info P, I and D terms for logging
-    if (!(_motors.limit.throttle_lower || _motors.limit.throttle_upper) || ((is_positive(_pid_accel_z.get_i()) && is_negative(_pid_vel_z.get_error())) || (is_negative(_pid_accel_z.get_i()) && is_positive(_pid_vel_z.get_error())))) {
-        _pid_accel_z.set_integrator(_pid_accel_z.get_i() + _dt * thr_per_accelz_cmss * 1000.0f * _pid_vel_z.get_error() * _pid_vel_z.kP() * POSCONTROL_VIBE_COMP_I_GAIN);
-    }
-    return POSCONTROL_VIBE_COMP_P_GAIN * thr_per_accelz_cmss * _accel_target.z + _pid_accel_z.get_i() * 0.001f;
+    return _pdnn_output_Omega;
 }
 
-/// standby_xyz_reset - resets I terms and removes position error
-///     This function will let Loiter and Alt Hold continue to operate
-///     in the event that the flight controller is in control of the
-///     aircraft when in standby.
-void AC_PosControl::standby_xyz_reset()
+Vector3f AC_PDNN_SO3::get_e_Omega() const
+{   
+    
+    return _e_Omega;
+}
+
+Vector3f AC_PDNN_SO3::get_e_R() const
+{   
+    
+    return _e_R;
+}
+
+Vector3f AC_PDNN_SO3::get_dot_Omega_c() const
+{   
+    
+    return _dot_Omega_c;
+}
+
+Vector3f AC_PDNN_SO3::get_phi() const
+{   
+    Vector3f _phi;
+    _phi.x = _phi_x;
+    _phi.y = _phi_y;
+    _phi.z = _phi_z;
+    return _phi;
+}
+
+Vector3f AC_PDNN_SO3::get_J() const
+{   
+    Vector3f _J;
+    _J.x = _J_x;
+    _J.y = _J_y;
+    _J.z = _J_z;
+    return _J;
+}
+
+float AC_PDNN_SO3::get_Psi_R() const
 {
-    // Set _pid_accel_z integrator to zero.
-    _pid_accel_z.set_integrator(0.0f);
-
-    // Set the target position to the current pos.
-    _pos_target = _inav.get_position_neu_cm().topostype();
-
-    // Set _pid_vel_xy integrator and derivative to zero.
-    _pid_vel_xy.reset_filter();
-
-    // initialise ekf xy reset handler
-    init_ekf_xy_reset();
+    return _Psi_R;
 }
 
-#if HAL_LOGGING_ENABLED
-// write PSC and/or PSCZ logs
-void AC_PosControl::write_log()
+// save_gains - save gains to eeprom
+void AC_PDNN_SO3::save_gains()
 {
-    if (is_active_xy()) {
-        float accel_x, accel_y;
-        lean_angles_to_accel_xy(accel_x, accel_y);
-        //Write_PSCN(_pos_desired.x, _pos_target.x, _inav.get_position_neu_cm().x,
-                   //_vel_desired.x, _vel_target.x, _inav.get_velocity_neu_cms().x,
-                   //_accel_desired.x, _accel_target.x, accel_x);
-        //Write_PSCE(_pos_desired.y, _pos_target.y, _inav.get_position_neu_cm().y,
-                   //_vel_desired.y, _vel_target.y, _inav.get_velocity_neu_cms().y,
-                   //_accel_desired.y, _accel_target.y, accel_y);
-
-        // log offsets if they are being used
-        if (!_pos_offset.xy().is_zero()) {
-            Write_PSON(_pos_offset_target.x, _pos_offset.x, _vel_offset_target.x, _vel_offset.x, _accel_offset_target.x, _accel_offset.x);
-            Write_PSOE(_pos_offset_target.y, _pos_offset.y, _vel_offset_target.y, _vel_offset.y, _accel_offset_target.y, _accel_offset.y);
-        }
-    }
-
-    if (is_active_z()) {
-        //Write_PSCD(_pdnn_pos.get_phi().x, _pdnn_pos.get_m().x, _attitude_control.get_phi().x, //这一段放到了updatez循环中以寻求400hz刷新
-                   //_attitude_control.get_phi().y, -_vel_target.z, -_inav.get_velocity_z_up_cms(),
-                   //-_accel_desired.z, -_accel_target.z, -get_z_accel_cmss());
-
-        // log down and terrain offsets if they are being used
-        if (!is_zero(_pos_offset.z)) {
-            Write_PSOD(-_pos_offset_target.z, -_pos_offset.z, -_vel_offset_target.z, -_vel_offset.z, -_accel_offset_target.z, -_accel_offset.z);
-        }
-        if (!is_zero(_pos_terrain)) {
-            Write_PSOT(-_pos_terrain_target, -_pos_terrain, 0, -_vel_terrain, 0, -_accel_terrain);
-        }
-    }
+    _kR.save();
+    _kOmega.save();
+    _kR_z.save();
+    _kOmega_z.save();
+    //_filt_E_hz.save();
+    //_filt_D_hz.save();
 }
-#endif  // HAL_LOGGING_ENABLED
 
-/// crosstrack_error - returns horizontal error to the closest point to the current track
-float AC_PosControl::crosstrack_error() const
+// get the target filter alpha
+float AC_PDNN_SO3::get_filt_E_alpha(float dt) const
 {
-    const Vector2f pos_error = _inav.get_position_xy_cm() - (_pos_target.xy()).tofloat();
-    if (is_zero(_vel_desired.xy().length_squared())) {
-        // crosstrack is the horizontal distance to target when stationary
-        return pos_error.length();
-    } else {
-        // crosstrack is the horizontal distance to the closest point to the current track
-        const Vector2f vel_unit = _vel_desired.xy().normalized();
-        const float dot_error = pos_error * vel_unit;
-
-        // todo: remove MAX of zero when safe_sqrt fixed
-        return safe_sqrt(MAX(pos_error.length_squared() - sq(dot_error), 0.0));
-    }
+    return calc_lowpass_alpha_dt(dt, 5.0f);
 }
 
-///
-/// private methods
-///
-
-/// Terrain
-
-/// update_z_offsets - updates the vertical offsets used by terrain following
-void AC_PosControl::update_terrain()
+// get the derivative filter alpha
+float AC_PDNN_SO3::get_filt_D_alpha(float dt) const
 {
-    // update position, velocity, accel offsets for this iteration
-    postype_t pos_terrain = _pos_terrain;
-    update_pos_vel_accel(pos_terrain, _vel_terrain, _accel_terrain, _dt, MIN(_limit_vector.z, 0.0f), _p_pos_z.get_error(), _pid_vel_z.get_error());
-    _pos_terrain = pos_terrain;
-
-    // input shape horizontal position, velocity and acceleration offsets
-    shape_pos_vel_accel(_pos_terrain_target, 0.0, 0.0,
-        _pos_terrain, _vel_terrain, _accel_terrain,
-        get_max_speed_down_cms(), get_max_speed_up_cms(),
-        -get_max_accel_z_cmss(), get_max_accel_z_cmss(),
-        _jerk_max_z_cmsss, _dt, false);
-
-    // we do not have to update _pos_terrain_target because we assume the target velocity and acceleration are zero
-    // if we know how fast the terain altitude is changing we would add update_pos_vel_accel for _pos_terrain_target here
+    return calc_lowpass_alpha_dt(dt, 5.0f);
 }
 
-// get_lean_angles_to_accel - convert roll, pitch lean angles to NE frame accelerations in cm/s/s
-void AC_PosControl::accel_to_lean_angles(float accel_x_cmss, float accel_y_cmss, float& roll_target, float& pitch_target) const
-{
-    // rotate accelerations into body forward-right frame
-    const float accel_forward = accel_x_cmss * _ahrs.cos_yaw() + accel_y_cmss * _ahrs.sin_yaw();
-    const float accel_right = -accel_x_cmss * _ahrs.sin_yaw() + accel_y_cmss * _ahrs.cos_yaw();
 
-    // update angle targets that will be passed to stabilize controller
-    pitch_target = accel_to_angle(-accel_forward * 0.01) * 100;
-    float cos_pitch_target = cosf(pitch_target * M_PI / 18000.0f);
-    roll_target = accel_to_angle((accel_right * cos_pitch_target)*0.01) * 100;
-}
-
-// lean_angles_to_accel_xy - convert roll, pitch lean target angles to NE frame accelerations in cm/s/s
-// todo: this should be based on thrust vector attitude control
-void AC_PosControl::lean_angles_to_accel_xy(float& accel_x_cmss, float& accel_y_cmss) const
-{
-    // rotate our roll, pitch angles into lat/lon frame
-    Vector3f att_target_euler = _attitude_control.get_att_target_euler_rad();
-    att_target_euler.z = _ahrs.yaw;
-    Vector3f accel_cmss = lean_angles_to_accel(att_target_euler);
-
-    accel_x_cmss = accel_cmss.x;
-    accel_y_cmss = accel_cmss.y;
-}
-
-// calculate_yaw_and_rate_yaw - update the calculated the vehicle yaw and rate of yaw.
-void AC_PosControl::calculate_yaw_and_rate_yaw()
-{
-    // Calculate the turn rate
-    float turn_rate = 0.0f;
-    const float vel_desired_xy_len = _vel_desired.xy().length();
-    if (is_positive(vel_desired_xy_len)) {
-        const float accel_forward = (_accel_desired.x * _vel_desired.x + _accel_desired.y * _vel_desired.y) / vel_desired_xy_len;
-        const Vector2f accel_turn = _accel_desired.xy() - _vel_desired.xy() * accel_forward / vel_desired_xy_len;
-        const float accel_turn_xy_len = accel_turn.length();
-        turn_rate = accel_turn_xy_len / vel_desired_xy_len;
-        if ((accel_turn.y * _vel_desired.x - accel_turn.x * _vel_desired.y) < 0.0) {
-            turn_rate = -turn_rate;
-        }
-    }
-
-    // update the target yaw if velocity is greater than 5% _vel_max_xy_cms
-    if (vel_desired_xy_len > _vel_max_xy_cms * 0.05f) {
-        _yaw_target = degrees(_vel_desired.xy().angle()) * 100.0f;
-        _yaw_rate_target = turn_rate * degrees(100.0f);
-        return;
-    }
-
-    // use the current attitude controller yaw target
-    _yaw_target = _attitude_control.get_att_target_euler_cd().z;
-    _yaw_rate_target = 0;
-}
-
-// calculate_overspeed_gain - calculated increased maximum acceleration and jerk if over speed condition is detected
-float AC_PosControl::calculate_overspeed_gain()
-{
-    if (_vel_desired.z < _vel_max_down_cms && !is_zero(_vel_max_down_cms)) {
-        return POSCONTROL_OVERSPEED_GAIN_Z * _vel_desired.z / _vel_max_down_cms;
-    }
-    if (_vel_desired.z > _vel_max_up_cms && !is_zero(_vel_max_up_cms)) {
-        return POSCONTROL_OVERSPEED_GAIN_Z * _vel_desired.z / _vel_max_up_cms;
-    }
-    return 1.0;
-}
-
-/// initialise ekf xy position reset check
-void AC_PosControl::init_ekf_xy_reset()
-{
-    Vector2f pos_shift;
-    _ekf_xy_reset_ms = _ahrs.getLastPosNorthEastReset(pos_shift);
-}
-
-/// handle_ekf_xy_reset - check for ekf position reset and adjust loiter or brake target position
-void AC_PosControl::handle_ekf_xy_reset()
-{
-    // check for position shift
-    Vector2f pos_shift;
-    uint32_t reset_ms = _ahrs.getLastPosNorthEastReset(pos_shift);
-    if (reset_ms != _ekf_xy_reset_ms) {
-
-        // ToDo: move EKF steps into the offsets for modes setting absolute position and velocity
-        // for this we need some sort of switch to select what type of EKF handling we want to use
-
-        // To zero real position shift during relative position modes like Loiter, PosHold, Guided velocity and accleration control.
-        _pos_target.xy() = (_inav.get_position_xy_cm() + _p_pos_xy.get_error()).topostype();
-        _pos_desired.xy() = _pos_target.xy() - _pos_offset.xy();
-        _vel_target.xy() = _inav.get_velocity_xy_cms() + _pid_vel_xy.get_error();
-        _vel_desired.xy() = _vel_target.xy() - _vel_offset.xy();
-
-        _ekf_xy_reset_ms = reset_ms;
-    }
-}
-
-/// initialise ekf z axis reset check
-void AC_PosControl::init_ekf_z_reset()
-{
-    float alt_shift;
-    _ekf_z_reset_ms = _ahrs.getLastPosDownReset(alt_shift);
-}
-
-/// handle_ekf_z_reset - check for ekf position reset and adjust loiter or brake target position
-void AC_PosControl::handle_ekf_z_reset()
-{
-    // check for position shift
-    float alt_shift;
-    uint32_t reset_ms = _ahrs.getLastPosDownReset(alt_shift);
-    if (reset_ms != 0 && reset_ms != _ekf_z_reset_ms) {
-
-        // ToDo: move EKF steps into the offsets for modes setting absolute position and velocity
-        // for this we need some sort of switch to select what type of EKF handling we want to use
-
-        // To zero real position shift during relative position modes like Loiter, PosHold, Guided velocity and accleration control.
-        _pos_target.z = _inav.get_position_z_up_cm() + _p_pos_z.get_error();
-        _pos_desired.z = _pos_target.z - (_pos_offset.z + _pos_terrain);
-        _vel_target.z = _inav.get_velocity_z_up_cms() + _pid_vel_z.get_error();
-        _vel_desired.z = _vel_target.z - (_vel_offset.z + _vel_terrain);
-
-        _ekf_z_reset_ms = reset_ms;
-    }
-}
-
-bool AC_PosControl::pre_arm_checks(const char *param_prefix,
-                                   char *failure_msg,
-                                   const uint8_t failure_msg_len)
-{
-    if (!is_positive(get_pos_xy_p().kP())) {
-        hal.util->snprintf(failure_msg, failure_msg_len, "%s_POSXY_P must be > 0", param_prefix);
-        return false;
-    }
-    if (!is_positive(get_pos_z_p().kP())) {
-        hal.util->snprintf(failure_msg, failure_msg_len, "%s_POSZ_P must be > 0", param_prefix);
-        return false;
-    }
-    if (!is_positive(get_vel_z_pid().kP())) {
-        hal.util->snprintf(failure_msg, failure_msg_len, "%s_VELZ_P must be > 0", param_prefix);
-        return false;
-    }
-    if (!is_positive(get_accel_z_pid().kP())) {
-        hal.util->snprintf(failure_msg, failure_msg_len, "%s_ACCZ_P must be > 0", param_prefix);
-        return false;
-    }
-    if (!is_positive(get_accel_z_pid().kI())) {
-        hal.util->snprintf(failure_msg, failure_msg_len, "%s_ACCZ_I must be > 0", param_prefix);
-        return false;
-    }
-
-    return true;
-}
-
-// return true if on a real vehicle or SITL with lock-step scheduling
-bool AC_PosControl::has_good_timing(void) const
-{
-#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
-    auto *sitl = AP::sitl();
-    if (sitl) {
-        return sitl->state.is_lock_step_scheduled;
-    }
-#endif
-    // real boards are assumed to have good timing
-    return true;
-}
+  
