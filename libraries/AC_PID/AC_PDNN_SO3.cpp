@@ -85,6 +85,14 @@ Vector3f AC_PDNN_SO3::update_all(const Matrix3f &R_c, const Matrix3f &R, const V
         _pdnn_output.y = 0;
         _pdnn_output.z = 0;
 
+            // --- L1 相关状态初始化 ---
+        //_Omega_hat_L1.zero();
+        _Omega_hat_L1 = _Omega;
+        _z_tilde_L1.zero();
+        _h_L1.zero();
+        _sigma_m_hat_L1.zero();
+        _M_L1.zero();
+
 
     } else { //更新循环
         Matrix3f _R_c_last{_R_c}; //将上一个循环的_R_c存储到一个临时变量 _R_c_last 中，用于后续的微分项计算。这里用到拷贝函数，等价于Matrix3f error_last = _error;
@@ -129,10 +137,6 @@ Vector3f AC_PDNN_SO3::update_all(const Matrix3f &R_c, const Matrix3f &R, const V
         //void AC_PDNN_3D::update_i(float dt, float _ki, float _c1, float _kimax, bool limit)
         update_i(dt, 1.0f, 15.0f, 30.0f, true); //尽量小，姿态控制要求实时性
 
-       
-
-        //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~END~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
     }
    
    
@@ -168,6 +172,77 @@ Vector3f AC_PDNN_SO3::update_all(const Matrix3f &R_c, const Matrix3f &R, const V
     _pdnn_output.x = 0.01f * (-_e_R.x * 40.0f - _e_Omega.x * 40.0f - 1.0f * _integrator.x - _geomrtry_output.x - 0.0f *_phi_x + 0.0f*Aug.x); 
     _pdnn_output.y = 0.01f * (-_e_R.y * 40.0f - _e_Omega.y * 40.0f - 1.0f *_integrator.y - _geomrtry_output.y- 0.0f * _phi_y + 0.0f*Aug.y);
     _pdnn_output.z = 0.02f * (-_e_R.z * 40.0f - _e_Omega.z * 40.0f - 1.0f *_integrator.z - _geomrtry_output.z - 0.0f *_phi_z + 0.0f*Aug.z); //偏航误差e_R.z很容易就趋近于0，会导致无法满足持续激励假设
+   
+   //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~L1~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ // 把当前输出当作 L1 的 baseline 力矩
+        const Vector3f Mb_nominal = _pdnn_output;
+
+        //==================== L1 姿态自适应补偿 ====================//
+        // L1 参数
+        float _a_s_L1   = 40.0f;   // predictor 收敛速度（可调）
+        float _omega_c_L1 = 30.0f; // LPF 带宽 rad/s（可调）
+
+        if (is_positive(dt)) {
+            // 1) 预测器：\dot{\hat{\Omega}}
+            const Vector3f JOmega   = J * _Omega;
+            const Vector3f coriolis = _Omega % JOmega;     // 叉积
+
+            // f_rot = -J^{-1}(\Omega×J\Omega)
+            const Vector3f f_rot = -(J_inv * coriolis);
+
+            // 当前总力矩 = baseline + 上一拍 L1 补偿
+            const Vector3f M_total = Mb_nominal + _M_L1;
+
+            // \dot{\hat{\Omega}} = f_rot + J^{-1}(Mb + M_L1) + h + A_s(\hat{\Omega}-\Omega)
+            const float a_s = _a_s_L1;    // 成员变量：预测器收敛速度
+            const Matrix3f As(
+                -a_s, 0.0f, 0.0f,
+                 0.0f, -a_s, 0.0f,
+                 0.0f, 0.0f, -a_s
+            );
+
+            const Vector3f z_tilde = _Omega_hat_L1 - _Omega;
+
+            Vector3f Omega_hat_dot =
+                f_rot +
+                (J_inv * M_total) +
+                _h_L1 +
+                As * z_tilde;
+
+            _Omega_hat_L1 += Omega_hat_dot * dt;
+
+            // 2) 预测误差更新
+            _z_tilde_L1 = _Omega_hat_L1 - _Omega;
+
+            // 3) 分段常值自适应律 h[i] = -Θ z_tilde[i]
+            //    Θ = a_s * exp(-a_s*dt) / (1 - exp(-a_s*dt))
+            float exp_AsTs = expf(-a_s * dt);
+            float denom    = 1.0f - exp_AsTs;
+            if (denom < 1.0e-4f) {
+                denom = 1.0e-4f;
+            }
+            float k_h = a_s * exp_AsTs / denom;
+
+            _h_L1 = -_z_tilde_L1 * k_h;
+
+            // 4) 匹配扰动在力矩通道的估计：\hat{\sigma}_m^{rot} = J * h
+            _sigma_m_hat_L1 = J * _h_L1;
+
+            // 5) 一阶 LPF 生成 L1 补偿力矩
+            const float omega_c = _omega_c_L1;   // 成员变量：滤波带宽
+
+            Vector3f M_L1_dot =
+                (_sigma_m_hat_L1 * (-omega_c)) +   // 输入是 -sigma_hat
+                (_M_L1           * (-omega_c));    // -ω_c M_L1
+
+            _M_L1 += M_L1_dot * dt;
+        }
+
+        // ---- 最终输出：baseline + L1 补偿 ----
+        _pdnn_output = Mb_nominal + _M_L1;
+    
+   //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~END~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   
    }
     return _pdnn_output; //返回pdnn控制器输出
 }

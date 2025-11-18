@@ -125,6 +125,21 @@ public:
     //声明自适应更新律
     float _dot_J_x, _dot_J_y, _dot_J_z;
 
+    // === L1 几何控制（姿态环）相关状态 ===
+    // 预测器状态：\hat{\Omega}
+    Vector3f _Omega_hat_L1;
+
+    // 预测误差：\tilde{z} = \hat{\Omega} - \Omega
+    Vector3f _z_tilde_L1;
+
+    // 估计项 h(t) \approx J^{-1}\sigma_m^{rot}
+    Vector3f _h_L1;
+
+    // 匹配扰动在力矩通道的估计 \hat{\sigma}_m^{rot}
+    Vector3f _sigma_m_hat_L1;
+
+    // L1 自适应补偿力矩 M_L1
+    Vector3f _M_L1;
 
     private:
     const float default_kR;
