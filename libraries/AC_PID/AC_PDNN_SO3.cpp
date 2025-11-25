@@ -257,7 +257,7 @@ const float Wmax = 500.0f;     // 权重范数上限（球半径）
 //——— X 轴 ———
 {
     // 1) 名义律 dW_nom = gamma * (e_Ω + c_R e_R) * h
-    const float _gamma_x = 35.0f;
+    const float _gamma_x = 80.0f;
     const float z_x = _e_Omega.x + c_R * _e_R.x;
 
     float dW_nom_x1 = _gamma_x * z_x * _h_x_1;
@@ -314,7 +314,7 @@ const float Wmax = 500.0f;     // 权重范数上限（球半径）
 
 //——— Y 轴 ———
 {
-    const float _gamma_y = 35.0f;
+    const float _gamma_y = 80.0f;
     const float z_y = _e_Omega.y + c_R * _e_R.y;
 
     float dW_nom_y1 = _gamma_y * z_y * _h_y_1;
@@ -368,7 +368,7 @@ const float Wmax = 500.0f;     // 权重范数上限（球半径）
 
 //——— Z 轴 ———
 {
-    const float _gamma_z = 10.0f;
+    const float _gamma_z = 30.0f;
     const float z_z = _e_Omega.z + c_R * _e_R.z;
 
     float dW_nom_z1 = _gamma_z * z_z * _h_z_1;
@@ -442,7 +442,7 @@ const float Wmax = 500.0f;     // 权重范数上限（球半径）
         
         float _J_max = 0.03f; //定义自适应参数上限
         //~~~~~x方向
-        float _eta_x = 0.02f; //定义自适应律参数，eta越大越平滑
+        float _eta_x = 0.1f; //定义自适应律参数，eta越大越平滑
         float _s_x = 0.02f;  //定义缩放因子
         float c_R = 0.6f;
         if ((_e_Omega.x + c_R * _e_R.x) * _pdnn_output.x > 0 )
@@ -468,7 +468,7 @@ const float Wmax = 500.0f;     // 权重范数上限（球半径）
         }
 
         //~~~~~~y方向
-        float _eta_y = 0.02f; //定义自适应律参数，eta越大越平滑
+        float _eta_y = 0.1f; //定义自适应律参数，eta越大越平滑
         float _s_y = 0.02f;  //定义缩放因子
         if ((_e_Omega.y + c_R * _e_R.y) * _pdnn_output.y > 0 )
         {
@@ -494,7 +494,7 @@ const float Wmax = 500.0f;     // 权重范数上限（球半径）
 
         //~~~~~~z方向
         float _J_max_z = 0.04f; //定义自适应参数上限
-        float _eta_z = 0.02f; //定义自适应律参数，eta越大越平滑
+        float _eta_z = 0.1f; //定义自适应律参数，eta越大越平滑
         float _s_z = 0.02f;  //定义缩放因子
         if ((_e_Omega.z + c_R * _e_R.z) * _pdnn_output.z > 0 )
         {
