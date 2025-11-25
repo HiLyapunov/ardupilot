@@ -179,8 +179,8 @@ Vector3f AC_PDNN_SO3::update_all(const Matrix3f &R_c, const Matrix3f &R, const V
 
         //==================== L1 姿态自适应补偿 ====================//
         // L1 参数
-        float _a_s_L1   = 0.25f;   // predictor 收敛速度（可调）
-        float _omega_c_L1 = 0.5f; // LPF 带宽 rad/s（可调）
+        float _a_s_L1   = 0.3f;   // predictor 收敛速度（可调）
+        float _omega_c_L1 = 1.5f; // LPF 带宽 rad/s（可调）
 
         if (is_positive(dt)) {
             // 1) 预测器：\dot{\hat{\Omega}}
