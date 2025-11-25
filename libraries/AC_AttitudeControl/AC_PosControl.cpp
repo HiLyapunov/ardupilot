@@ -779,7 +779,7 @@ void AC_PosControl::update_Rc()
 //接下来计算b3c=fd/||fd||
     //如果fd不是零向量，则归一化后作为b3轴
     static float _t = 0.0f;
-    const float t_start = 3.0f;
+    const float t_start = 100.0f;
     if (_event_interlock){
 
             // 更新时间
