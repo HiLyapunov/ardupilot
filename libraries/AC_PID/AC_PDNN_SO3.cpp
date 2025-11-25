@@ -253,7 +253,7 @@ const float Wmax = 500.0f;     // 权重范数上限（球半径）
 //——— X 轴 ———
 {
     // 1) 名义律 dW_nom = gamma * (e_Ω + c_R e_R) * h
-    const float _gamma_x = 50.0f;
+    const float _gamma_x = 80.0f;
     const float z_x = _e_Omega.x + c_R * _e_R.x;
 
     float dW_nom_x1 = _gamma_x * z_x * _h_x_1;
@@ -310,7 +310,7 @@ const float Wmax = 500.0f;     // 权重范数上限（球半径）
 
 //——— Y 轴 ———
 {
-    const float _gamma_y = 50.0f;
+    const float _gamma_y = 80.0f;
     const float z_y = _e_Omega.y + c_R * _e_R.y;
 
     float dW_nom_y1 = _gamma_y * z_y * _h_y_1;
@@ -364,7 +364,7 @@ const float Wmax = 500.0f;     // 权重范数上限（球半径）
 
 //——— Z 轴 ———
 {
-    const float _gamma_z = 10.0f;
+    const float _gamma_z = 30.0f;
     const float z_z = _e_Omega.z + c_R * _e_R.z;
 
     float dW_nom_z1 = _gamma_z * z_z * _h_z_1;
@@ -460,9 +460,9 @@ const float Wmax = 500.0f;     // 权重范数上限（球半径）
     //(void)_geomrtry_output;
    if (_Rc_active) {
     //计算总输出，每个方向上乘以惯性张量
-    _pdnn_output.x = 0.01f * (-_e_R.x * 40.0f - _e_Omega.x * 40.0f - 0.0f * _integrator.x - _geomrtry_output.x - 1.0f *_phi_x + 0.0f*Aug.x); 
-    _pdnn_output.y = 0.01f * (-_e_R.y * 40.0f - _e_Omega.y * 40.0f - 0.0f *_integrator.y - _geomrtry_output.y- 1.0f * _phi_y + 0.0f*Aug.y);
-    _pdnn_output.z = 0.02f * (-_e_R.z * 40.0f - _e_Omega.z * 40.0f - 0.0f *_integrator.z - _geomrtry_output.z - 1.0f *_phi_z + 0.0f*Aug.z); //偏航误差e_R.z很容易就趋近于0，会导致无法满足持续激励假设
+    _pdnn_output.x = 0.01f * (-_e_R.x * 100.0f - _e_Omega.x * 40.0f - 0.0f * _integrator.x - _geomrtry_output.x - 1.0f *_phi_x + 0.0f*Aug.x); 
+    _pdnn_output.y = 0.01f * (-_e_R.y * 100.0f - _e_Omega.y * 40.0f - 0.0f *_integrator.y - _geomrtry_output.y- 1.0f * _phi_y + 0.0f*Aug.y);
+    _pdnn_output.z = 0.02f * (-_e_R.z * 100.0f - _e_Omega.z * 40.0f - 0.0f *_integrator.z - _geomrtry_output.z - 1.0f *_phi_z + 0.0f*Aug.z); //偏航误差e_R.z很容易就趋近于0，会导致无法满足持续激励假设
     
     //_pdnn_output.x = 0.01f * (-_e_R.x * 100.0f - _e_Omega.x * 40.0f - 0.0f * _integrator.x - _geomrtry_output.x - 0.0f *_phi_x + 0.0f*Aug.x); 
     //_pdnn_output.y = 0.01f * (-_e_R.y * 100.0f - _e_Omega.y * 40.0f - 0.0f *_integrator.y - _geomrtry_output.y- 0.0f * _phi_y + 0.0f*Aug.y);
